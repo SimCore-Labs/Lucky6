@@ -5,10 +5,18 @@ import {
   type NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service.js';
+import { RedisService } from './redis.service.js';
 import { SettlementEvaluatorService } from './domain/settlement-evaluator.service.js';
+import { SettlementService } from './settlement.service.js';
 
 @Module({
-  providers: [SettlementEvaluatorService],
+  providers: [
+    PrismaService,
+    RedisService,
+    SettlementEvaluatorService,
+    SettlementService,
+  ],
 })
 class SettlementModule {}
 

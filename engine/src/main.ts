@@ -5,24 +5,13 @@ import {
   type NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import type { ServiceHealth } from '@lucky-six/contracts';
-import { Module, Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { generateLuckySixDraw } from './domain/draw/mathematics.js';
-
-@Injectable()
-export class DrawSchedulerService implements OnModuleInit {
-  private readonly logger = new Logger(DrawSchedulerService.name);
-
-  onModuleInit() {
-    this.logger.log('Draw Engine initialized. Ready to process 5-minute draw lifecycle.');
-  }
-
-  generateDraw(jackpotProbability = 0.02) {
-    return generateLuckySixDraw(jackpotProbability);
-  }
-}
+import { Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service.js';
+import { RedisService } from './redis.service.js';
+import { DrawSchedulerService } from './draw-scheduler.service.js';
 
 @Module({
-  providers: [DrawSchedulerService],
+  providers: [PrismaService, RedisService, DrawSchedulerService],
 })
 class EngineModule {}
 
