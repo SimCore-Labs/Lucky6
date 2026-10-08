@@ -79,11 +79,11 @@ model WalletSession {
 }
 
 model AuthChallenge {
-  nonce     String   @id
+  nonce     String    @id
   address   String
   domain    String
   purpose   String
-  issuedAt  DateTime @default(now())
+  issuedAt  DateTime  @default(now())
   expiresAt DateTime
   usedAt    DateTime?
 }
@@ -109,15 +109,15 @@ model LedgerEntry {
 }
 
 model Draw {
-  id         String          @id @default(uuid())
-  drawNumber Int             @unique
-  status     DrawStatus      @default(SCHEDULED)
+  id         String         @id @default(uuid())
+  drawNumber Int            @unique
+  status     DrawStatus     @default(SCHEDULED)
   openAt     DateTime
   closeAt    DateTime
   drawAt     DateTime
   resultAt   DateTime?
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
   balls      DrawBall[]
   statistics DrawStatistic?
   bets       Bet[]
@@ -145,19 +145,24 @@ model DrawStatistic {
 }
 
 model Market {
-  id         String            @id @default(uuid())
-  type       String
-  active     Boolean           @default(true)
-  selections MarketSelection[]
+  id          String            @id @default(uuid())
+  type        String            @unique
+  title       String
+  description String
+  active      Boolean           @default(true)
+  selections  MarketSelection[]
 }
 
 model MarketSelection {
-  id       String        @id @default(uuid())
-  marketId String
-  market   Market        @relation(fields: [marketId], references: [id])
-  value    String
-  odds     MarketOdds[]
-  bets     BetSelection[]
+  id          String         @id @default(uuid())
+  marketId    String
+  market      Market         @relation(fields: [marketId], references: [id])
+  value       String
+  label       String
+  odds        MarketOdds[]
+  bets        BetSelection[]
+
+  @@unique([marketId, value])
 }
 
 model MarketOdds {
@@ -170,6 +175,15 @@ model MarketOdds {
   createdAt   DateTime        @default(now())
 
   @@index([selectionId, version])
+}
+
+model PricingConfig {
+  id             String   @id @default(uuid())
+  key            String   @unique
+  houseMargin    Decimal  @default(0.08)
+  exposureFactor Decimal  @default(0.05)
+  parameters     Json?
+  updatedAt      DateTime @updatedAt
 }
 
 model Bet {
@@ -224,12 +238,12 @@ model PaymentOrder {
 }
 
 model PaymentTransaction {
-  id               String      @id @default(uuid())
+  id               String       @id @default(uuid())
   orderId          String
   order            PaymentOrder @relation(fields: [orderId], references: [id])
-  signature        String      @unique
+  signature        String       @unique
   lamports         BigInt
-  verificationDate DateTime    @default(now())
+  verificationDate DateTime     @default(now())
 }
 
 model AuditLog {
