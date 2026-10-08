@@ -1,0 +1,244 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+enum DrawStatus {
+  SCHEDULED
+  OPEN
+  CLOSING
+  CLOSED
+  DRAWING
+  RESULT_READY
+  SETTLEMENT_PENDING
+  SETTLED
+}
+
+enum BetStatus {
+  ACCEPTED
+  WON
+  LOST
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMING
+  VERIFIED
+  CREDITED
+  EXPIRED
+  FAILED
+  UNDERPAID
+  OVERPAID
+  REQUIRES_REVIEW
+}
+
+enum LedgerEntryType {
+  CREDIT_PURCHASE
+  BONUS_CREDIT
+  BET_STAKE
+  BET_REFUND
+  BET_WIN
+  ADJUSTMENT
+}
+
+model User {
+  id        String     @id @default(uuid())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  wallets   Wallet[]
+  auditLogs AuditLog[]
+}
+
+model Wallet {
+  id        String          @id @default(uuid())
+  address   String          @unique
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  balance   BigInt          @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  sessions  WalletSession[]
+  bets      Bet[]
+  ledger    LedgerAccount?
+  payments  PaymentOrder[]
+}
+
+model WalletSession {
+  id        String   @id @default(uuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id])
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model AuthChallenge {
+  nonce     String   @id
+  address   String
+  domain    String
+  purpose   String
+  issuedAt  DateTime @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+
+model LedgerAccount {
+  id       String        @id @default(uuid())
+  walletId String        @unique
+  wallet   Wallet        @relation(fields: [walletId], references: [id])
+  entries  LedgerEntry[]
+}
+
+model LedgerEntry {
+  id        String          @id @default(uuid())
+  accountId String
+  account   LedgerAccount   @relation(fields: [accountId], references: [id])
+  amount    BigInt
+  type      LedgerEntryType
+  reference String?
+  createdAt DateTime        @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([type, reference])
+}
+
+model Draw {
+  id         String          @id @default(uuid())
+  drawNumber Int             @unique
+  status     DrawStatus      @default(SCHEDULED)
+  openAt     DateTime
+  closeAt    DateTime
+  drawAt     DateTime
+  resultAt   DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  balls      DrawBall[]
+  statistics DrawStatistic?
+  bets       Bet[]
+}
+
+model DrawBall {
+  id         String @id @default(uuid())
+  drawId     String
+  draw       Draw   @relation(fields: [drawId], references: [id])
+  number     Int
+  color      String
+  orderIndex Int
+
+  @@unique([drawId, orderIndex])
+  @@unique([drawId, number])
+}
+
+model DrawStatistic {
+  id            String  @id @default(uuid())
+  drawId        String  @unique
+  draw          Draw    @relation(fields: [drawId], references: [id])
+  totalSum      Int
+  has49         Boolean
+  majorityColor String?
+}
+
+model Market {
+  id         String            @id @default(uuid())
+  type       String
+  active     Boolean           @default(true)
+  selections MarketSelection[]
+}
+
+model MarketSelection {
+  id       String        @id @default(uuid())
+  marketId String
+  market   Market        @relation(fields: [marketId], references: [id])
+  value    String
+  odds     MarketOdds[]
+  bets     BetSelection[]
+}
+
+model MarketOdds {
+  id          String          @id @default(uuid())
+  selectionId String
+  selection   MarketSelection @relation(fields: [selectionId], references: [id])
+  oddsValue   Decimal
+  version     Int             @default(1)
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+
+  @@index([selectionId, version])
+}
+
+model Bet {
+  id             String         @id @default(uuid())
+  walletId       String
+  wallet         Wallet         @relation(fields: [walletId], references: [id])
+  drawId         String
+  draw           Draw           @relation(fields: [drawId], references: [id])
+  stake          BigInt
+  status         BetStatus      @default(ACCEPTED)
+  idempotencyKey String?
+  createdAt      DateTime       @default(now())
+  selections     BetSelection[]
+  settlement     Settlement?
+
+  @@unique([walletId, idempotencyKey])
+  @@index([drawId, status])
+  @@index([walletId, createdAt])
+}
+
+model BetSelection {
+  id          String          @id @default(uuid())
+  betId       String
+  bet         Bet             @relation(fields: [betId], references: [id])
+  selectionId String
+  selection   MarketSelection @relation(fields: [selectionId], references: [id])
+  lockedOdds  Decimal
+
+  @@index([selectionId])
+}
+
+model Settlement {
+  id        String   @id @default(uuid())
+  betId     String   @unique
+  bet       Bet      @relation(fields: [betId], references: [id])
+  status    String
+  payout    BigInt   @default(0)
+  createdAt DateTime @default(now())
+}
+
+model PaymentOrder {
+  id               String               @id @default(uuid())
+  reference        String               @unique
+  walletId         String
+  wallet           Wallet               @relation(fields: [walletId], references: [id])
+  expectedLamports BigInt
+  creditsToIssue   BigInt
+  status           PaymentStatus        @default(PENDING)
+  createdAt        DateTime             @default(now())
+  expiresAt        DateTime
+  transactions     PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id               String      @id @default(uuid())
+  orderId          String
+  order            PaymentOrder @relation(fields: [orderId], references: [id])
+  signature        String      @unique
+  lamports         BigInt
+  verificationDate DateTime    @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

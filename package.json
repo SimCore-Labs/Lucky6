@@ -1,0 +1,33 @@
+{
+  "name": "lucky-six",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "backend",
+    "frontend",
+    "engine",
+    "settlement",
+    "payment-worker"
+  ],
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true,
+    "prisma": true,
+    "@prisma/engines": true
+  },
+  "scripts": {
+    "dev:backend": "npm run start:dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:engine": "npm run build --workspace=@lucky-six/contracts && npm run start:dev --workspace=@lucky-six/engine",
+    "dev:settlement": "npm run build --workspace=@lucky-six/contracts && npm run start:dev --workspace=@lucky-six/settlement",
+    "dev:payment-worker": "npm run build --workspace=@lucky-six/contracts && npm run start:dev --workspace=@lucky-six/payment-worker",
+    "db:validate": "npm run db:validate --workspace=backend",
+    "db:generate": "npm run db:generate --workspace=backend",
+    "db:migrate:dev": "npm run db:migrate:dev --workspace=backend",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=backend",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run build --workspace=@lucky-six/contracts && npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  }
+}
