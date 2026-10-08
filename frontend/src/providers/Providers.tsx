@@ -5,6 +5,7 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { theme } from '@/theme/theme';
+import { UiStoreProvider } from '@/store/ui/useUiStore';
 
 export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
   const [queryClient] = useState(
@@ -12,7 +13,7 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 15_000,
+            staleTime: 10_000,
             refetchOnWindowFocus: true,
             retry: 1,
           },
@@ -25,7 +26,7 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <QueryClientProvider client={queryClient}>
-          {children}
+          <UiStoreProvider>{children}</UiStoreProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>
