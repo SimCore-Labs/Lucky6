@@ -5,10 +5,20 @@ import {
   type NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service.js';
+import { RedisService } from './redis.service.js';
+import { MockPriceOracleService } from './domain/price-oracle.service.js';
 import { SolanaPaymentService } from './domain/solana-payment.service.js';
+import { PaymentWorkerService } from './payment-worker.service.js';
 
 @Module({
-  providers: [SolanaPaymentService],
+  providers: [
+    PrismaService,
+    RedisService,
+    MockPriceOracleService,
+    SolanaPaymentService,
+    PaymentWorkerService,
+  ],
 })
 class PaymentWorkerModule {}
 
