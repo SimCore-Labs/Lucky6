@@ -4,7 +4,12 @@ import {
   FastifyAdapter,
   type NestFastifyApplication,
 } from '@nestjs/platform-fastify';
+import { Module } from '@nestjs/common';
+import { SolanaPaymentService } from './domain/solana-payment.service.js';
 
+@Module({
+  providers: [SolanaPaymentService],
+})
 class PaymentWorkerModule {}
 
 const port = Number(process.env.PORT ?? 4300);
@@ -19,8 +24,8 @@ app.getHttpAdapter()
     service: '@lucky-six/payment-worker',
     status: 'ok',
     process: 'alive',
-    phase: 'foundation',
+    phase: 'ready',
   }));
 
 await app.listen(port, '127.0.0.1');
-console.info(`Payment worker foundation listening on 127.0.0.1:${port}`);
+console.info(`Payment worker listening on 127.0.0.1:${port}`);
