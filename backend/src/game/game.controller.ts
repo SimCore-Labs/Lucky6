@@ -36,14 +36,19 @@ export class GameController {
 
     if (!draw) {
       // Create initial active draw if none exists
+      const lastDraw = await this.prisma.draw.findFirst({
+        orderBy: { drawNumber: 'desc' },
+      });
+      const nextDrawNumber = lastDraw ? lastDraw.drawNumber + 1 : 10001;
       const now = new Date();
+
       draw = await this.prisma.draw.create({
         data: {
-          drawNumber: 10001,
+          drawNumber: nextDrawNumber,
           status: 'OPEN',
           openAt: now,
-          closeAt: new Date(now.getTime() + 4.5 * 60 * 1000), // 4.5 mins betting
-          drawAt: new Date(now.getTime() + 5 * 60 * 1000), // 5 min draw
+          closeAt: new Date(now.getTime() + 4 * 60 * 1000), // 4 mins betting
+          drawAt: new Date(now.getTime() + 4.5 * 60 * 1000), // 4.5 min draw
         },
         include: { balls: true, statistics: true },
       });
@@ -211,6 +216,7 @@ export class GameController {
         drawId: bet.drawId,
         stake: bet.stake.toString(),
         status: bet.status,
+        idempotencyKey: bet.idempotencyKey,
         createdAt: bet.createdAt.toISOString(),
         selections: bet.selections.map((s) => ({
           selectionId: s.selectionId,

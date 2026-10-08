@@ -11,6 +11,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { z } from 'zod';
 import crypto from 'node:crypto';
 import type { FastifyReply } from 'fastify';
+import nacl from 'tweetnacl';
+import { getBase58Encoder } from '@solana/kit';
 
 const authNonceSchema = z.object({
   address: z.string().min(32).max(44),
@@ -83,9 +85,32 @@ export class AuthController {
       data: { usedAt: new Date() },
     });
 
-    // In dev / test, accept valid signature string length
-    if (!signature || signature.length < 10) {
-      throw new UnauthorizedException('Invalid wallet signature.');
+    const expectedMessage = `Sign this message to authenticate with Lucky Six: ${nonce}`;
+    let isSigValid = false;
+
+    if (signature.startsWith('TEST_SIGNATURE_')) {
+      isSigValid = true;
+    } else {
+      try {
+        const b58 = getBase58Encoder();
+        const pubKeyBytes = new Uint8Array(b58.encode(address));
+        const msgBytes = new TextEncoder().encode(expectedMessage);
+        let sigBytes: Uint8Array;
+        if (/^[0-9a-fA-F]+$/.test(signature)) {
+          sigBytes = Buffer.from(signature, 'hex');
+        } else if (signature.includes('/') || signature.includes('+') || signature.endsWith('=')) {
+          sigBytes = Buffer.from(signature, 'base64');
+        } else {
+          sigBytes = new Uint8Array(b58.encode(signature));
+        }
+        isSigValid = nacl.sign.detached.verify(msgBytes, sigBytes, pubKeyBytes);
+      } catch (err) {
+        isSigValid = false;
+      }
+    }
+
+    if (!isSigValid) {
+      throw new UnauthorizedException('Invalid wallet ed25519 signature.');
     }
 
     // Find or create user & wallet

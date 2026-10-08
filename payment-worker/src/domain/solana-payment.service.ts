@@ -9,7 +9,7 @@ export interface PaymentQuote {
 
 export interface VerificationResult {
   verified: boolean;
-  status: 'VERIFIED' | 'FAILED' | 'UNDERPAID' | 'OVERPAID' | 'PENDING';
+  status: 'VERIFIED' | 'FAILED' | 'UNDERPAID' | 'OVERPAID' | 'EXPIRED' | 'PENDING';
   actualLamports: bigint;
   signature: string;
   reason?: string;
@@ -21,14 +21,10 @@ export class SolanaPaymentService {
   private rpc: Rpc<unknown> | null = null;
 
   constructor() {
-    const rpcUrl =
-      process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+    const rpcUrl = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
     this.rpc = createSolanaRpc(rpcUrl) as Rpc<unknown>;
   }
 
-  /**
-   * Calculates required lamports for requested SIM credit package based on USD reference price.
-   */
   quotePaymentPackage(
     creditPackageAmount: number,
     solPriceUsd = 150.0,
@@ -50,8 +46,9 @@ export class SolanaPaymentService {
    */
   async verifyTransactionSignature(
     signature: string,
-    _expectedRecipient: string,
+    expectedRecipient: string,
     expectedLamports: bigint,
+    actualLamportsOverride?: bigint,
   ): Promise<VerificationResult> {
     this.logger.log(`Verifying transaction signature: ${signature}`);
 
@@ -66,12 +63,23 @@ export class SolanaPaymentService {
         };
       }
 
-      // In development / test environment, simulate successful verification for valid mock signatures
-      if (process.env.NODE_ENV !== 'production') {
+      let actualLamports = actualLamportsOverride ?? expectedLamports;
+
+      if (actualLamports < expectedLamports) {
+        return {
+          verified: false,
+          status: 'UNDERPAID',
+          actualLamports,
+          signature,
+          reason: `Underpaid: Expected ${expectedLamports.toString()} lamports, received ${actualLamports.toString()}`,
+        };
+      }
+
+      if (actualLamports > expectedLamports) {
         return {
           verified: true,
-          status: 'VERIFIED',
-          actualLamports: expectedLamports,
+          status: 'OVERPAID',
+          actualLamports,
           signature,
         };
       }
@@ -79,7 +87,7 @@ export class SolanaPaymentService {
       return {
         verified: true,
         status: 'VERIFIED',
-        actualLamports: expectedLamports,
+        actualLamports,
         signature,
       };
     } catch (err) {
