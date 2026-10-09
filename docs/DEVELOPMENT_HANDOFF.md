@@ -41,7 +41,7 @@ Add the following:
 The EC2 host needs Node.js 24+, npm, PM2, and Redis. Install only the backend workspaces and their shared contracts from the monorepo root:
 
 ```bash
-cd ~/Lucky6
+cd ~/Lucky6-deploy
 npm ci --workspace=@lucky-six/contracts --workspace=backend --workspace=engine --workspace=settlement --workspace=payment-worker
 npm run build --workspace=@lucky-six/contracts
 npm run build --workspace=backend
@@ -50,7 +50,7 @@ npm run build --workspace=settlement
 npm run build --workspace=payment-worker
 ```
 
-This does not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). The PM2 ecosystem loads that file for each backend process.
+The active deployment checkout is `~/Lucky6-deploy`; it was created to preserve the pre-existing `~/Lucky6` checkout and its local lockfile change. These commands do not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). The PM2 ecosystem loads that file for each backend process.
 
 Start the API and backend workers with:
 
