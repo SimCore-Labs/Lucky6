@@ -27,7 +27,7 @@ describe('DrawSchedulerService', () => {
   it('processes the oldest unfinished draw first', async () => {
     const draw = {
       id: 'draw-id',
-      drawNumber: 10001,
+      drawNumber: 1,
       status: 'OPEN',
       closeAt: new Date(Date.now() + 60_000),
       drawAt: new Date(Date.now() + 90_000),
@@ -61,10 +61,54 @@ describe('DrawSchedulerService', () => {
     });
   });
 
+  it('creates draw 1 when there is no draw history', async () => {
+    const draw = {
+      id: 'first-draw-id',
+      drawNumber: 1,
+      status: 'OPEN',
+      openAt: new Date(),
+      closeAt: new Date(Date.now() + 4 * 60_000),
+      drawAt: new Date(Date.now() + 4.5 * 60_000),
+      balls: [],
+      statistics: null,
+    };
+    const findFirst = vi.fn().mockResolvedValueOnce(null);
+    const lock = vi.fn();
+    const create = vi.fn().mockResolvedValue(draw);
+    const transaction = vi.fn(async (callback) =>
+      callback({
+        $queryRaw: lock,
+        draw: {
+          findFirst: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(null),
+          create,
+        },
+      }),
+    );
+    const prisma = {
+      draw: { findFirst },
+      $transaction: transaction,
+    } as never;
+    const publish = vi.fn().mockResolvedValue(1);
+    const redis = { publish } as never;
+    const scheduler = new DrawSchedulerService(prisma, redis);
+
+    await scheduler.processDrawLifecycle();
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ drawNumber: 1 }),
+      include: { balls: true, statistics: true },
+    });
+    expect(lock.mock.calls[0][0].join('')).toContain('::text AS lock_acquired');
+    expect(publish).toHaveBeenCalledWith(
+      'lucky-six:events',
+      expect.objectContaining({ event: 'draw.created' }),
+    );
+  });
+
   it('recovers a DRAWING record and commits all result data atomically', async () => {
     const draw = {
       id: 'draw-id',
-      drawNumber: 10001,
+      drawNumber: 1,
       status: 'DRAWING',
       closeAt: new Date(Date.now() - 60_000),
       drawAt: new Date(Date.now() - 30_000),

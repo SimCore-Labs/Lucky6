@@ -48,7 +48,7 @@ export class DrawSchedulerService implements OnModuleInit {
         const drawAt = new Date(now.getTime() + 4.5 * 60 * 1000); // 30s closed period
 
         const creation = await this.prisma.$transaction(async (tx) => {
-          await tx.$queryRaw`SELECT pg_advisory_xact_lock(1145390147)`;
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(1145390147)::text AS lock_acquired`;
 
           const activeDraw = await tx.draw.findFirst({
             where: {
@@ -71,7 +71,7 @@ export class DrawSchedulerService implements OnModuleInit {
           const lastDraw = await tx.draw.findFirst({
             orderBy: { drawNumber: 'desc' },
           });
-          const nextDrawNumber = lastDraw ? lastDraw.drawNumber + 1 : 10001;
+          const nextDrawNumber = lastDraw ? lastDraw.drawNumber + 1 : 1;
           const draw = await tx.draw.create({
             data: {
               drawNumber: nextDrawNumber,
@@ -147,7 +147,7 @@ export class DrawSchedulerService implements OnModuleInit {
         const mathResult = generateLuckySixDraw();
 
         const saved = await this.prisma.$transaction(async (tx) => {
-          await tx.$queryRaw`SELECT pg_advisory_xact_lock(1145390148)`;
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(1145390148)::text AS lock_acquired`;
 
           const drawToGenerate = await tx.draw.findUnique({
             where: { id: currentDraw.id },

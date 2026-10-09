@@ -76,7 +76,7 @@ SETTLEMENT_PENDING -- accepted bets processed --> SETTLED
 ```
 
 - When it finds no active draw, the engine creates the next draw as `OPEN`.
-  Draw numbers start at 10001 if there is no earlier draw.
+  Draw numbers start at 1 if there is no earlier draw.
 - A new draw is open for four minutes. `drawAt` is 30 seconds after `closeAt`,
   leaving a closed interval before results are generated.
 - The engine writes each result ball and the statistics to PostgreSQL, sets
@@ -106,7 +106,7 @@ pending migrations, then run
 `npm run db:reset-draw-data --workspace=backend -- --confirm-reset-draw-data --services-stopped`.
 The guarded command deletes draw rows and their balls, statistics, bets,
 selections, and settlements. It deliberately preserves wallets, balances,
-payment records, and ledger entries. The engine then starts at draw 10001.
+payment records, and ledger entries. The engine then starts at draw 1.
 
 The engine processes the oldest unfinished draw before moving to a newer one.
 Draw creation is serialized with a PostgreSQL advisory transaction lock so two
@@ -159,7 +159,7 @@ a draw on the frontend's behalf.
 ```json
 {
   "id": "draw-uuid",
-  "drawNumber": 10001,
+  "drawNumber": 1,
   "status": "OPEN",
   "openAt": "2026-10-09T15:00:00.000Z",
   "closeAt": "2026-10-09T15:04:00.000Z",
@@ -167,24 +167,7 @@ a draw on the frontend's behalf.
   "resultAt": null,
   "balls": [],
   "statistics": null,
-  "latestResult": {
-    "id": "previous-draw-uuid",
-    "drawNumber": 10000,
-    "resultAt": "2026-10-09T15:04:35.000Z",
-    "balls": [
-      { "number": 3, "color": "GREEN", "orderIndex": 0 },
-      { "number": 14, "color": "BLUE", "orderIndex": 1 },
-      { "number": 25, "color": "BLUE", "orderIndex": 2 },
-      { "number": 32, "color": "BLUE", "orderIndex": 3 },
-      { "number": 41, "color": "BLUE", "orderIndex": 4 },
-      { "number": 48, "color": "GREEN", "orderIndex": 5 }
-    ],
-    "statistics": {
-      "totalSum": 163,
-      "has49": false,
-      "majorityColor": "BLUE"
-    }
-  }
+  "latestResult": null
 }
 ```
 
