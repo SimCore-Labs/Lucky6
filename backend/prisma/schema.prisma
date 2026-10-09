@@ -121,6 +121,8 @@ model Draw {
   balls      DrawBall[]
   statistics DrawStatistic?
   bets       Bet[]
+
+  @@index([status, drawNumber])
 }
 
 model DrawBall {

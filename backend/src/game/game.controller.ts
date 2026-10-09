@@ -8,7 +8,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { PricingEngineService } from '../pricing/pricing-engine.service.js';
 import { z } from 'zod';
 
 const placeBetSchema = z.object({
@@ -21,41 +20,44 @@ const placeBetSchema = z.object({
 
 @Controller()
 export class GameController {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly pricingEngine: PricingEngineService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   @Get('draws/current')
   async getCurrentDraw() {
-    let draw = await this.prisma.draw.findFirst({
-      where: { status: { in: ['OPEN', 'CLOSING', 'SCHEDULED', 'DRAWING'] } },
+    const draw = await this.prisma.draw.findFirst({
+      where: {
+        status: {
+          in: [
+            'OPEN',
+            'CLOSING',
+            'CLOSED',
+            'DRAWING',
+            'RESULT_READY',
+            'SETTLEMENT_PENDING',
+          ],
+        },
+      },
       orderBy: { drawNumber: 'desc' },
       include: { balls: true, statistics: true },
     });
 
     if (!draw) {
-      // Create initial active draw if none exists
-      const lastDraw = await this.prisma.draw.findFirst({
-        orderBy: { drawNumber: 'desc' },
-      });
-      const nextDrawNumber = lastDraw ? lastDraw.drawNumber + 1 : 10001;
-      const now = new Date();
-
-      draw = await this.prisma.draw.create({
-        data: {
-          drawNumber: nextDrawNumber,
-          status: 'OPEN',
-          openAt: now,
-          closeAt: new Date(now.getTime() + 4 * 60 * 1000), // 4 mins betting
-          drawAt: new Date(now.getTime() + 4.5 * 60 * 1000), // 4.5 min draw
-        },
-        include: { balls: true, statistics: true },
-      });
-
-      // Update market odds
-      await this.pricingEngine.updateMarketOddsForActiveMarkets();
+      throw new NotFoundException('No active draw is currently available.');
     }
+
+    const latestResult =
+      draw.balls.length === 6
+        ? draw
+        : await this.prisma.draw.findFirst({
+            where: {
+              status: {
+                in: ['RESULT_READY', 'SETTLEMENT_PENDING', 'SETTLED'],
+              },
+              balls: { some: {} },
+            },
+            orderBy: { drawNumber: 'desc' },
+            include: { balls: true, statistics: true },
+          });
 
     return {
       id: draw.id,
@@ -77,6 +79,26 @@ export class GameController {
             majorityColor: draw.statistics.majorityColor,
           }
         : null,
+      latestResult:
+        latestResult?.balls.length === 6
+          ? {
+              id: latestResult.id,
+              drawNumber: latestResult.drawNumber,
+              resultAt: latestResult.resultAt?.toISOString() ?? null,
+              balls: latestResult.balls.map((ball) => ({
+                number: ball.number,
+                color: ball.color,
+                orderIndex: ball.orderIndex,
+              })),
+              statistics: latestResult.statistics
+                ? {
+                    totalSum: latestResult.statistics.totalSum,
+                    has49: latestResult.statistics.has49,
+                    majorityColor: latestResult.statistics.majorityColor,
+                  }
+                : null,
+            }
+          : null,
     };
   }
 
@@ -102,13 +124,15 @@ export class GameController {
       type: m.type,
       title: m.title,
       description: m.description,
-      selections: m.selections.map((s) => ({
-        id: s.id,
-        value: s.value,
-        label: s.label,
-        currentOdds: s.odds[0] ? Number(s.odds[0].oddsValue) : 2.0,
-        oddsVersion: s.odds[0] ? s.odds[0].version : 1,
-      })),
+      selections: m.selections
+        .filter((selection) => selection.odds.length > 0)
+        .map((selection) => ({
+          id: selection.id,
+          value: selection.value,
+          label: selection.label,
+          currentOdds: Number(selection.odds[0].oddsValue),
+          oddsVersion: selection.odds[0].version,
+        })),
     }));
   }
 

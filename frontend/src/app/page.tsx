@@ -1,273 +1,314 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getCurrentDraw, getMarkets } from '@/lib/api';
-import type { CurrentDrawResponse, MarketResponse } from '@/lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ApiError, getCurrentDraw, type CurrentDrawResponse } from '@/lib/api';
 import styles from './page.module.css';
 
-const ballColors: Record<string, string> = {
-  BLUE: 'blue',
-  YELLOW: 'gold',
-  RED: 'coral',
-  GREEN: 'mint',
-  BLACK: 'black',
-};
+gsap.registerPlugin(useGSAP);
 
-function formatCountdown(milliseconds: number): string {
-  if (milliseconds <= 0) return '00:00';
-  const totalSeconds = Math.ceil(milliseconds / 1000);
+const ballNumbers = Array.from({ length: 49 }, (_, index) => index + 1);
+const emptySlots = Array.from({ length: 6 }, (_, index) => index);
+const ballColors = ['red', 'blue', 'green'] as const;
+
+function colorClass(number: number): string {
+  if (number === 49) return styles.blackBall;
+  return styles[`${ballColors[(number - 1) % ballColors.length]}Ball`];
+}
+
+function resultColorClass(color: string, number: number): string {
+  if (number === 49 || color === 'BLACK') return styles.blackBall;
+  if (color === 'YELLOW') return styles.legacyYellowBall;
+  if (color === 'RED') return styles.redBall;
+  if (color === 'BLUE') return styles.blueBall;
+  if (color === 'GREEN') return styles.greenBall;
+  return colorClass(number);
+}
+
+function getCountdownTarget(draw: CurrentDrawResponse | null): number | null {
+  if (!draw) return null;
+  const target = draw.status === 'OPEN' ? draw.closeAt : draw.drawAt;
+  return new Date(target).getTime();
+}
+
+function formatCountdown(milliseconds: number | null): string {
+  if (milliseconds === null) return '--:--';
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function DrawStage({
-  draw,
-  loading,
-  error,
-  now,
-}: {
-  draw?: CurrentDrawResponse;
-  loading: boolean;
-  error: boolean;
-  now: number;
-}) {
-  const balls = draw?.balls
-    ? [...draw.balls].sort((first, second) => first.orderIndex - second.orderIndex)
-    : [];
-  const remaining = draw ? new Date(draw.closeAt).getTime() - now : 0;
-
-  return (
-    <section className={styles.drawCard} aria-labelledby="draw-title">
-      <div className={styles.cardGrain} aria-hidden="true" />
-      <header className={styles.drawHeader}>
-        <div className={styles.liveStatus}>
-          <span className={styles.liveDot} />
-          {draw?.status === 'OPEN' ? 'Taking entries' : 'Live draw'}
-        </div>
-        <span className={styles.roundNumber}>
-          {draw ? `Round ${draw.drawNumber}` : 'Next round'}
-        </span>
-      </header>
-
-      <div className={styles.drawCenter}>
-        <p className={styles.drawEyebrow}>Six numbers. One moment.</p>
-        <h2 id="draw-title" className={styles.drawTitle}>
-          {loading ? 'Finding your draw' : error ? 'Draw unavailable' : 'The next draw'}
-        </h2>
-        <p className={styles.drawCaption}>
-          {error
-            ? 'We could not reach the live draw. Check back in a moment.'
-            : draw?.status === 'OPEN'
-              ? 'The balls are still in the drum.'
-              : 'The live result appears here as it unfolds.'}
-        </p>
-
-        <div className={styles.ballTrack} aria-label={`${balls.length} of 6 numbers drawn`}>
-          {Array.from({ length: 6 }, (_, index) => {
-            const ball = balls[index];
-            const color = ball ? ballColors[ball.color] ?? 'blue' : undefined;
-            return (
-              <div
-                className={`${styles.ball} ${color ? styles[color] : styles.ballWaiting}`}
-                key={ball?.orderIndex ?? index}
-                aria-label={ball ? `Number ${ball.number}` : 'Number pending'}
-              >
-                <span>{ball ? ball.number : <i />}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className={styles.countdownRow}>
-          <span>{draw?.status === 'OPEN' ? 'Entries close in' : 'Draw status'}</span>
-          <strong>
-            {loading ? '--:--' : draw?.status === 'OPEN' ? formatCountdown(remaining) : draw?.status ?? 'Waiting'}
-          </strong>
-        </div>
-      </div>
-
-      <footer className={styles.drawFooter}>
-        <div>
-          <span className={styles.footerLabel}>Draw rhythm</span>
-          <strong>Every five minutes</strong>
-        </div>
-        <div className={styles.orbitMark} aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-      </footer>
-    </section>
-  );
-}
-
-function MarketBoard({
-  markets,
-  loading,
-  error,
-}: {
-  markets: MarketResponse[];
-  loading: boolean;
-  error: boolean;
-}) {
-  const [selected, setSelected] = useState<string | null>(null);
-
-  return (
-    <section className={styles.marketSection} id="markets" aria-labelledby="markets-title">
-      <div className={styles.sectionHeading}>
-        <div>
-          <p className={styles.sectionKicker}>The board</p>
-          <h2 id="markets-title">Choose your angle.</h2>
-        </div>
-        <p className={styles.sectionNote}>
-          {loading ? 'Loading live prices' : error ? 'Prices are temporarily unavailable' : `${markets.length} live markets`}
-        </p>
-      </div>
-
-      {error ? (
-        <div className={styles.emptyState} role="status">
-          <strong>Markets could not load.</strong>
-          <span>The board will reconnect automatically.</span>
-        </div>
-      ) : loading ? (
-        <div className={styles.emptyState} role="status">Loading live markets…</div>
-      ) : (
-        <div className={styles.marketGrid}>
-          {markets.map((market, index) => (
-            <article className={styles.marketCard} key={market.id}>
-              <div className={styles.marketTopline}>
-                <span className={styles.marketIndex}>{String(index + 1).padStart(2, '0')}</span>
-                <span className={styles.marketType}>{market.type.replaceAll('_', ' ').toLowerCase()}</span>
-              </div>
-              <h3>{market.title}</h3>
-              <p className={styles.marketDescription}>{market.description}</p>
-              <div className={styles.selectionList}>
-                {market.selections.map((selection) => {
-                  const selectionKey = `${market.id}:${selection.id}`;
-                  const isSelected = selected === selectionKey;
-                  return (
-                    <button
-                      className={`${styles.selection} ${isSelected ? styles.selectionActive : ''}`}
-                      type="button"
-                      key={selection.id}
-                      aria-pressed={isSelected}
-                      onClick={() => setSelected(isSelected ? null : selectionKey)}
-                    >
-                      <span className={styles.selectionName}>
-                        <span className={styles.selectionMark} aria-hidden="true" />
-                        {selection.label}
-                      </span>
-                      <span className={styles.odds}>{selection.currentOdds.toFixed(2)}×</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function HomePage() {
+  const stageRef = useRef<HTMLElement>(null);
+  const resultKeyRef = useRef<string | null>(null);
+  const hasShownResultsRef = useRef(false);
+  const vacuumedDrawRef = useRef<string | null>(null);
+  const ballRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [draw, setDraw] = useState<CurrentDrawResponse | null>(null);
+  const [shownBalls, setShownBalls] = useState<CurrentDrawResponse['balls']>(
+    [],
+  );
+  const [revealToken, setRevealToken] = useState<string | null>(null);
+  const [selectedNumbers, setSelectedNumbers] = useState<Set<number>>(
+    () => new Set(),
+  );
   const [now, setNow] = useState(0);
-  const drawQuery = useQuery({
-    queryKey: ['current-draw'],
-    queryFn: ({ signal }) => getCurrentDraw(signal),
-    refetchInterval: 15_000,
-  });
-  const marketsQuery = useQuery({
-    queryKey: ['markets'],
-    queryFn: ({ signal }) => getMarkets(signal),
-    refetchInterval: 60_000,
-  });
+
+  const displayedResult =
+    draw?.latestResult ??
+    (draw?.balls.length === 6
+      ? { id: draw.id, balls: draw.balls }
+      : null);
+  const orderedResults =
+    displayedResult?.balls.length === 6
+      ? [...displayedResult.balls].sort(
+          (first, second) => first.orderIndex - second.orderIndex,
+        )
+      : [];
+  const resultKey =
+    orderedResults.length === 6
+      ? `${displayedResult?.id}:${orderedResults.map((ball) => ball.number).join(',')}`
+      : '';
+  const countdownTarget = getCountdownTarget(draw);
+  const countdown = countdownTarget === null ? null : countdownTarget - now;
+  const vacuumTimeReached =
+    Boolean(draw) &&
+    draw?.status !== 'OPEN' &&
+    countdown !== null &&
+    countdown <= 0;
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let timeoutId: number | undefined;
+    let controller: AbortController | undefined;
+
+    const loadCurrentDraw = async () => {
+      controller = new AbortController();
+      try {
+        const currentDraw = await getCurrentDraw(controller.signal);
+        if (active) {
+          setDraw(currentDraw);
+          setLoadError(null);
+        }
+      } catch (error) {
+        if (active && !controller.signal.aborted) {
+          if (error instanceof ApiError && error.status === 404) {
+            setDraw(null);
+            setLoadError(null);
+          } else {
+            setLoadError('The draw feed is unavailable. Retrying shortly.');
+          }
+        }
+      } finally {
+        if (active) {
+          timeoutId = window.setTimeout(loadCurrentDraw, 3_000);
+        }
+      }
+    };
+
+    void loadCurrentDraw();
+    return () => {
+      active = false;
+      controller?.abort();
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     const updateTime = () => setNow(Date.now());
     updateTime();
-    const interval = window.setInterval(updateTime, 1_000);
-    return () => window.clearInterval(interval);
+    const intervalId = window.setInterval(updateTime, 1_000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
+  useGSAP(
+    () => {
+      if (!resultKey || !draw || resultKeyRef.current === resultKey) return;
+
+      resultKeyRef.current = resultKey;
+      const revealBalls = () => {
+        hasShownResultsRef.current = true;
+        setShownBalls(orderedResults);
+        setRevealToken(resultKey);
+      };
+
+      if (!hasShownResultsRef.current) {
+        revealBalls();
+        return;
+      }
+
+      vacuumedDrawRef.current = draw.id;
+      const visibleBalls = ballRefs.current.filter(
+        (ball): ball is HTMLDivElement => ball !== null,
+      );
+      if (visibleBalls.length === 0) {
+        revealBalls();
+        return;
+      }
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        revealBalls();
+        return;
+      }
+
+      gsap.to(visibleBalls, {
+        scale: 0.08,
+        y: -78,
+        opacity: 0,
+        rotation: 150,
+        duration: 0.34,
+        stagger: 0.16,
+        ease: 'power3.in',
+        onComplete: revealBalls,
+      });
+    },
+    {
+      scope: stageRef,
+      dependencies: [resultKey],
+      revertOnUpdate: true,
+    },
+  );
+
+  useGSAP(
+    () => {
+      if (!revealToken) return;
+      const incomingBalls = ballRefs.current.filter(
+        (ball): ball is HTMLDivElement => ball !== null,
+      );
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      gsap.fromTo(
+        incomingBalls,
+        { scale: 0.15, y: 48, opacity: 0 },
+        {
+          scale: 1,
+          y: 0,
+          opacity: 1,
+          duration: 0.48,
+          stagger: 0.3,
+          ease: 'back.out(1.7)',
+        },
+      );
+    },
+    {
+      scope: stageRef,
+      dependencies: [revealToken],
+      revertOnUpdate: true,
+    },
+  );
+
+  useGSAP(
+    () => {
+      if (
+        !draw ||
+        !vacuumTimeReached ||
+        shownBalls.length === 0 ||
+        vacuumedDrawRef.current === draw.id
+      ) {
+        return;
+      }
+
+      vacuumedDrawRef.current = draw.id;
+      const visibleBalls = ballRefs.current.filter(
+        (ball): ball is HTMLDivElement => ball !== null,
+      );
+      if (visibleBalls.length === 0) {
+        setShownBalls([]);
+        return;
+      }
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setShownBalls([]);
+        return;
+      }
+
+      gsap.to(visibleBalls, {
+        scale: 0.08,
+        y: -78,
+        opacity: 0,
+        rotation: 150,
+        duration: 0.34,
+        stagger: 0.16,
+        ease: 'power3.in',
+        onComplete: () => setShownBalls([]),
+      });
+    },
+    {
+      scope: stageRef,
+      dependencies: [draw?.id, vacuumTimeReached, shownBalls.length],
+      revertOnUpdate: true,
+    },
+  );
+
+  const toggleNumber = (number: number) => {
+    setSelectedNumbers((current) => {
+      const next = new Set(current);
+      if (next.has(number)) next.delete(number);
+      else next.add(number);
+      return next;
+    });
+  };
+
   return (
-    <main className={styles.page}>
-      <div className={styles.pageShell}>
-        <header className={styles.topbar}>
-          <a className={styles.brand} href="#top" aria-label="Lucky Six home">
-            <span className={styles.brandMark} aria-hidden="true">
-              <svg viewBox="0 0 38 38" fill="none">
-                <path d="M19 2.5 33.2 10.7v16.6L19 35.5 4.8 27.3V10.7L19 2.5Z" />
-                <path d="M23.6 10.2h-7.1l-1 7.2c.9-.7 1.9-1 3.2-1 3.2 0 5.1 1.9 5.1 5s-2.2 5.2-5.6 5.2c-2.4 0-4.3-.9-5.7-2.7" />
-              </svg>
-            </span>
-            <span className={styles.brandName}>lucky<span>six</span></span>
-          </a>
-
-          <nav className={styles.navigation} aria-label="Main navigation">
-            <a className={styles.navActive} href="#draw">Live draw</a>
-            <a href="#markets">Markets</a>
-            <a href="#how-to-play">How it works</a>
-          </nav>
-
-          <span className={styles.walletNote}>Wallet access is next</span>
-        </header>
-
-        <section className={styles.hero} id="top">
-          <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>
-              <span className={styles.eyebrowLine} />
-              A little luck. A live draw.
-            </p>
-            <h1>Six balls.<br />A whole new <em>moment.</em></h1>
-            <p className={styles.heroDescription}>
-              Pick a side before the drum turns. Watch six numbers land, live,
-              every five minutes.
-            </p>
-            <a className={styles.primaryLink} href="#markets">
-              Explore the markets
-              <span aria-hidden="true">↘</span>
-            </a>
-            <div className={styles.heroFootnote}>
-              <span className={styles.footnoteRule} />
-              <span>Live prices · Public draw record</span>
-            </div>
-          </div>
-
-          <div className={styles.drawWrap} id="draw">
-            <DrawStage
-              draw={drawQuery.data}
-              loading={drawQuery.isPending}
-              error={drawQuery.isError}
-              now={now}
-            />
-          </div>
-        </section>
-
-        <div className={styles.infoRail} id="how-to-play">
-          <span className={styles.infoLabel}>How to play</span>
-          <p>Choose a market</p>
-          <span className={styles.railArrow} aria-hidden="true">→</span>
-          <p>Watch six balls draw</p>
-          <span className={styles.railArrow} aria-hidden="true">→</span>
-          <p>See the result live</p>
-          <span className={styles.infoAside}>Simple by design.</span>
+    <main className={styles.page} ref={stageRef}>
+      <section className={styles.drawStage} aria-label="Current draw">
+        <div className={styles.drawBalls}>
+          {emptySlots.map((slot) => {
+            const ball = shownBalls[slot];
+            return (
+              <div
+                className={`${styles.drawBall} ${
+                  ball
+                    ? resultColorClass(ball.color, ball.number)
+                    : styles.emptyBall
+                }`}
+                key={slot}
+                ref={(element) => {
+                  ballRefs.current[slot] = element;
+                }}
+                aria-label={ball ? `Drawn number ${ball.number}` : 'Result pending'}
+              >
+                {ball?.number ?? ''}
+              </div>
+            );
+          })}
         </div>
+        <p className={styles.countdown} aria-live="off">
+          {formatCountdown(countdown)}
+        </p>
+        {loadError && (
+          <p className={styles.errorMessage} role="alert">
+            {loadError}
+          </p>
+        )}
+        <span className={styles.screenReaderOnly} aria-live="polite">
+          {draw ? `Draw ${draw.drawNumber}: ${draw.status}` : 'Waiting for the draw'}
+        </span>
+      </section>
 
-        <MarketBoard
-          markets={marketsQuery.data ?? []}
-          loading={marketsQuery.isPending}
-          error={marketsQuery.isError}
-        />
-
-        <footer className={styles.siteFooter}>
-          <a className={styles.footerBrand} href="#top">Lucky Six</a>
-          <span>Play thoughtfully. Results are recorded on the public ledger.</span>
-          <a href="#top">Back to top <span aria-hidden="true">↑</span></a>
-        </footer>
-      </div>
+      <section className={styles.numberPicker} aria-label="Choose numbers">
+        <div className={styles.numberGrid}>
+          {ballNumbers.map((number) => {
+            const selected = selectedNumbers.has(number);
+            return (
+              <button
+                aria-label={`Number ${number}${selected ? ', selected' : ''}`}
+                aria-pressed={selected}
+                className={`${styles.numberBall} ${colorClass(number)} ${
+                  selected ? styles.selectedBall : ''
+                }`}
+                key={number}
+                onClick={() => toggleNumber(number)}
+                type="button"
+              >
+                {number}
+              </button>
+            );
+          })}
+        </div>
+      </section>
     </main>
   );
 }

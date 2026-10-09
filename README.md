@@ -1186,13 +1186,12 @@ with:
 49 = special Black Jackpot ball
 ```
 
-Normal colors:
+Normal colors repeat by number:
 
 ```text
-BLUE
-YELLOW
-RED
-GREEN
+1, 4, 7, ... 46 → RED
+2, 5, 8, ... 47 → BLUE
+3, 6, 9, ... 48 → GREEN
 ```
 
 Special:

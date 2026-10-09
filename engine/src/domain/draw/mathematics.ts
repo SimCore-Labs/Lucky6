@@ -15,18 +15,14 @@ export interface DrawMathematicsResult {
 
 /**
  * Assigns color based on Lucky Six rules:
- * 1-12: BLUE
- * 13-24: YELLOW
- * 25-36: RED
- * 37-48: GREEN
+ * Numbers 1-48 repeat RED, BLUE, GREEN.
  * 49: BLACK
  */
 export function getBallColor(number: number): BallColor {
   if (number === 49) return 'BLACK';
-  if (number >= 1 && number <= 12) return 'BLUE';
-  if (number >= 13 && number <= 24) return 'YELLOW';
-  if (number >= 25 && number <= 36) return 'RED';
-  if (number >= 37 && number <= 48) return 'GREEN';
+  if (Number.isInteger(number) && number >= 1 && number <= 48) {
+    return (['RED', 'BLUE', 'GREEN'] as const)[(number - 1) % 3];
+  }
   throw new Error(`Invalid ball number: ${number}`);
 }
 
@@ -73,9 +69,8 @@ export function generateLuckySixDraw(
   let totalSum = 0;
   let has49 = false;
   const colorCounts: Record<string, number> = {
-    BLUE: 0,
-    YELLOW: 0,
     RED: 0,
+    BLUE: 0,
     GREEN: 0,
     BLACK: 0,
   };
@@ -92,10 +87,10 @@ export function generateLuckySixDraw(
     };
   });
 
-  // Determine majority color among normal colors (BLUE, YELLOW, RED, GREEN)
+  // Determine the majority among normal colors; black does not participate.
   let majorityColor: BallColor | null = null;
   let maxCount = 0;
-  for (const c of ['BLUE', 'YELLOW', 'RED', 'GREEN'] as BallColor[]) {
+  for (const c of ['RED', 'BLUE', 'GREEN'] as BallColor[]) {
     if (colorCounts[c] > maxCount) {
       maxCount = colorCounts[c];
       majorityColor = c;

@@ -28,7 +28,12 @@ ssh -i C:\path\to\wesheild.pem ubuntu@16.16.90.151
 
 ## 3. GitHub Actions Continuous Deployment (CI/CD)
 
-The deployment workflow currently exists as `.github/workflows/deploy.yml.disabled` and does not run. Manual deployments should update the backend services only; keep the Next.js frontend on Vercel.
+`.github/workflows/deploy.yml` deploys backend changes when `engine/**`,
+`backend/**`, or `packages/contracts/**` change on `main`. It does not trigger
+for frontend-only changes. Before pulling or building, the workflow stops all
+four PM2 backend processes. It installs the backend workspaces, builds the
+contracts and workers, applies pending Prisma migrations, then restarts and
+health-checks the API and draw engine. Keep the Next.js frontend on Vercel.
 
 **Required GitHub Secrets:**
 Go to your GitHub repository -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**.
@@ -67,6 +72,13 @@ pm2 logs lucky6-backend lucky6-engine lucky6-settlement lucky6-payment-worker
 ```
 
 **Database safety:** Do not use `npm run start:prod --workspace=backend` on production; that script runs `prisma db push --accept-data-loss` and seeds the database on every start. Review and apply a deliberate production database migration separately before starting services. The payment worker uses the configured Solana RPC and treasury public address; do not put wallet signing secrets in this environment or in the API/frontend.
+
+For the explicitly approved one-time pre-launch reset, first stop all services
+with `pm2 stop lucky6-backend lucky6-engine lucky6-settlement lucky6-payment-worker`.
+Then, from `~/Lucky6-deploy`, apply migrations and run
+`npm run db:reset-draw-data --workspace=backend -- --confirm-reset-draw-data --services-stopped`.
+Restart the four PM2 services and run `pm2 save`. The reset preserves wallets,
+balances, payments, and ledger entries.
 
 ## 5. Domain & Nginx Configuration (luckyapi.muizdev.xyz)
 

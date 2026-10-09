@@ -30,7 +30,7 @@ export type LedgerEntryType =
   | 'BET_WIN'
   | 'ADJUSTMENT';
 
-export type BallColor = 'BLUE' | 'YELLOW' | 'RED' | 'GREEN' | 'BLACK';
+export type BallColor = 'RED' | 'BLUE' | 'GREEN' | 'BLACK';
 
 export type MarketType =
   | 'INDIVIDUAL_NUMBER'

@@ -1,22 +1,34 @@
 const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function fetchJson<T>(
   endpoint: string,
   options?: RequestInit,
 ): Promise<T> {
+  const headers = new Headers(options?.headers);
+  if (options?.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    throw new Error(
+    throw new ApiError(
       errorBody.message || `API request failed with status ${response.status}`,
+      response.status,
     );
   }
 
@@ -36,6 +48,17 @@ export interface CurrentDrawResponse {
     totalSum: number;
     has49: boolean;
     majorityColor: string | null;
+  } | null;
+  latestResult?: {
+    id: string;
+    drawNumber: number;
+    resultAt: string | null;
+    balls: { number: number; color: string; orderIndex: number }[];
+    statistics?: {
+      totalSum: number;
+      has49: boolean;
+      majorityColor: string | null;
+    } | null;
   } | null;
 }
 

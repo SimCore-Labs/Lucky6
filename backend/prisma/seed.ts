@@ -48,16 +48,11 @@ async function main() {
   console.log(`  Markets upserted: ${firstBallColor.id}, ${sumOverUnder.id}`);
 
   // ─── 2. Selections & Odds for First Ball Color ─────────────────
-  // Color bands: 1-12 BLUE, 13-24 YELLOW, 25-36 RED, 37-48 GREEN, 49 BLACK
-  // With 6 balls drawn from 35 and first ball's color as market:
-  // Each non-black color covers 12 of 48 numbers = 25% chance → ~4.0 fair odds
-  // BLACK (49) is drawn with ~1/7 probability when it appears in pool → ~48.0 fair odds
   const colors = [
-    { value: 'BLUE',   label: 'Blue (1–12)',       odds: 4.0  },
-    { value: 'YELLOW', label: 'Yellow (13–24)',     odds: 4.0  },
-    { value: 'RED',    label: 'Red (25–36)',        odds: 4.0  },
-    { value: 'GREEN',  label: 'Green (37–48)',      odds: 4.0  },
-    { value: 'BLACK',  label: 'Black Jackpot (49)', odds: 48.0 },
+    { value: 'RED', label: 'Red', odds: 2.77 },
+    { value: 'BLUE', label: 'Blue', odds: 2.77 },
+    { value: 'GREEN', label: 'Green', odds: 2.77 },
+    { value: 'BLACK', label: 'Black Jackpot (49)', odds: 276.0 },
   ];
 
   for (const color of colors) {
@@ -98,7 +93,7 @@ async function main() {
 
   console.log('\n✅ Seeding completed successfully!');
   console.log('   Markets seeded: 2 (First Ball Color, Sum Over/Under)');
-  console.log('   Selections seeded: 7 (5 colors + 2 sum options)');
+  console.log('   Selections seeded: 6 (4 colors + 2 sum options)');
 }
 
 main()

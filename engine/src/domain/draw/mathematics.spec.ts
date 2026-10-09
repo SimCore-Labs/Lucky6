@@ -3,15 +3,18 @@ import { generateLuckySixDraw, getBallColor } from './mathematics.js';
 
 describe('Lucky Six Mathematics', () => {
   it('correctly maps ball numbers to colors', () => {
-    expect(getBallColor(1)).toBe('BLUE');
-    expect(getBallColor(12)).toBe('BLUE');
-    expect(getBallColor(13)).toBe('YELLOW');
-    expect(getBallColor(24)).toBe('YELLOW');
-    expect(getBallColor(25)).toBe('RED');
-    expect(getBallColor(36)).toBe('RED');
-    expect(getBallColor(37)).toBe('GREEN');
+    expect(getBallColor(1)).toBe('RED');
+    expect(getBallColor(2)).toBe('BLUE');
+    expect(getBallColor(3)).toBe('GREEN');
+    expect(getBallColor(4)).toBe('RED');
+    expect(getBallColor(46)).toBe('RED');
+    expect(getBallColor(47)).toBe('BLUE');
     expect(getBallColor(48)).toBe('GREEN');
     expect(getBallColor(49)).toBe('BLACK');
+  });
+
+  it.each([0, 50, 1.5])('rejects invalid ball number %s', (number) => {
+    expect(() => getBallColor(number)).toThrow(`Invalid ball number: ${number}`);
   });
 
   it('generates 6 unique balls with total sum and color majority', () => {

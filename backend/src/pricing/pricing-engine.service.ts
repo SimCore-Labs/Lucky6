@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export interface BaseProbabilities {
-  individualNumber: number; // e.g. 6 / 48 = 0.125
+  individualNumber: number;
   blackJackpot: number; // e.g. 0.02
   colorMajority: Record<string, number>;
   sumHighMidLow: Record<string, number>;
@@ -11,25 +11,84 @@ export interface BaseProbabilities {
 }
 
 @Injectable()
-export class PricingEngineService {
+export class PricingEngineService implements OnModuleInit {
   private readonly logger = new Logger(PricingEngineService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  private combination(total: number, selected: number): number {
+    if (selected < 0 || selected > total) return 0;
+    const count = Math.min(selected, total - selected);
+    let result = 1;
+    for (let index = 1; index <= count; index++) {
+      result = (result * (total - count + index)) / index;
+    }
+    return result;
+  }
+
+  private colorMajorityProbabilities(normalBallCount: 5 | 6) {
+    const outcomes = {
+      RED: 0,
+      BLUE: 0,
+      GREEN: 0,
+      NO_MAJORITY: 0,
+    };
+    const totalCombinations = this.combination(48, normalBallCount);
+
+    for (let red = 0; red <= normalBallCount; red++) {
+      for (let blue = 0; blue <= normalBallCount - red; blue++) {
+        const green = normalBallCount - red - blue;
+        const ways =
+          this.combination(16, red) *
+          this.combination(16, blue) *
+          this.combination(16, green);
+        const counts = [red, blue, green];
+        const maximum = Math.max(...counts);
+        const winners = counts.filter((count) => count === maximum).length;
+        const outcome =
+          winners === 1
+            ? (['RED', 'BLUE', 'GREEN'][counts.indexOf(maximum)] as
+                | 'RED'
+                | 'BLUE'
+                | 'GREEN')
+            : 'NO_MAJORITY';
+        outcomes[outcome] += ways / totalCombinations;
+      }
+    }
+
+    return outcomes;
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.updateMarketOddsForActiveMarkets();
+  }
 
   /**
    * Calculates base theoretical probability distributions for Lucky Six markets.
    */
   calculateBaseProbabilities(jackpotProb = 0.02): BaseProbabilities {
+    const normalDrawMajority = this.colorMajorityProbabilities(6);
+    const jackpotDrawMajority = this.colorMajorityProbabilities(5);
+    const colorMajority = {
+      RED:
+        normalDrawMajority.RED * (1 - jackpotProb) +
+        jackpotDrawMajority.RED * jackpotProb,
+      BLUE:
+        normalDrawMajority.BLUE * (1 - jackpotProb) +
+        jackpotDrawMajority.BLUE * jackpotProb,
+      GREEN:
+        normalDrawMajority.GREEN * (1 - jackpotProb) +
+        jackpotDrawMajority.GREEN * jackpotProb,
+      NO_MAJORITY:
+        normalDrawMajority.NO_MAJORITY * (1 - jackpotProb) +
+        jackpotDrawMajority.NO_MAJORITY * jackpotProb,
+    };
+
     return {
-      individualNumber: 6 / 48, // 0.125
+      individualNumber:
+        ((1 - jackpotProb) * 6 + jackpotProb * 5) / 48,
       blackJackpot: jackpotProb,
-      colorMajority: {
-        BLUE: 0.22,
-        YELLOW: 0.22,
-        RED: 0.22,
-        GREEN: 0.22,
-        NO_MAJORITY: 0.12,
-      },
+      colorMajority,
       sumHighMidLow: {
         LOW: 0.33,
         MID: 0.34,
@@ -40,11 +99,10 @@ export class PricingEngineService {
         EVEN: 0.5,
       },
       firstBallColor: {
-        BLUE: (1 - jackpotProb) / 4,
-        YELLOW: (1 - jackpotProb) / 4,
-        RED: (1 - jackpotProb) / 4,
-        GREEN: (1 - jackpotProb) / 4,
-        BLACK: jackpotProb,
+        RED: (1 - jackpotProb) / 3 + (jackpotProb * 5) / 18,
+        BLUE: (1 - jackpotProb) / 3 + (jackpotProb * 5) / 18,
+        GREEN: (1 - jackpotProb) / 3 + (jackpotProb * 5) / 18,
+        BLACK: jackpotProb / 6,
       },
     };
   }
@@ -89,6 +147,7 @@ export class PricingEngineService {
     for (const market of markets) {
       for (const selection of market.selections) {
         let prob = 0.1;
+        let supportedSelection = true;
         if (market.type === 'INDIVIDUAL_NUMBER') {
           prob = baseProbs.individualNumber;
         } else if (market.type === 'BLACK_JACKPOT') {
@@ -97,13 +156,25 @@ export class PricingEngineService {
               ? baseProbs.blackJackpot
               : 1 - baseProbs.blackJackpot;
         } else if (market.type === 'COLOR_MAJORITY') {
-          prob = baseProbs.colorMajority[selection.value] ?? 0.2;
+          const probability = baseProbs.colorMajority[selection.value];
+          if (probability === undefined) supportedSelection = false;
+          else prob = probability;
         } else if (market.type === 'SUM_HIGH_MID_LOW') {
           prob = baseProbs.sumHighMidLow[selection.value] ?? 0.33;
         } else if (market.type === 'SUM_ODD_EVEN') {
           prob = baseProbs.sumOddEven[selection.value] ?? 0.5;
         } else if (market.type === 'FIRST_BALL_COLOR') {
-          prob = baseProbs.firstBallColor[selection.value] ?? 0.2;
+          const probability = baseProbs.firstBallColor[selection.value];
+          if (probability === undefined) supportedSelection = false;
+          else prob = probability;
+        }
+
+        if (!supportedSelection) {
+          await this.prisma.marketOdds.updateMany({
+            where: { selectionId: selection.id, active: true },
+            data: { active: false },
+          });
+          continue;
         }
 
         const oddsValue = this.calculateOddsFromProbability(
@@ -119,7 +190,11 @@ export class PricingEngineService {
 
         const nextVersion = latestOdds ? latestOdds.version + 1 : 1;
 
-        if (!latestOdds || Number(latestOdds.oddsValue) !== oddsValue) {
+        if (
+          !latestOdds ||
+          !latestOdds.active ||
+          Number(latestOdds.oddsValue) !== oddsValue
+        ) {
           if (latestOdds) {
             await this.prisma.marketOdds.updateMany({
               where: { selectionId: selection.id, active: true },

@@ -12,6 +12,7 @@
     "db:validate": "prisma validate",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:reset-draw-data": "node --env-file=.env prisma/reset-draw-data.mjs",
     "db:studio": "prisma studio",
     "lint": "oxlint --type-aware src test",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
