@@ -28,5 +28,14 @@ module.exports = {
         NODE_ENV: 'production',
       },
     },
+    {
+      name: 'lucky6-payment-worker',
+      cwd: __dirname,
+      script: 'payment-worker/dist/main.js',
+      node_args: '--env-file=backend/.env',
+      env: {
+        NODE_ENV: 'production',
+      },
+    },
   ],
 };

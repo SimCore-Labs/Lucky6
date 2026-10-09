@@ -38,7 +38,7 @@ Add the following:
 
 ## 4. EC2 Installation and PM2 Process Management
 
-The EC2 host needs Node.js 20+, npm, PM2, and Redis. Install only the backend workspaces and their shared contracts from the monorepo root:
+The EC2 host needs Node.js 24+, npm, PM2, and Redis. Install only the backend workspaces and their shared contracts from the monorepo root:
 
 ```bash
 cd ~/Lucky6
@@ -50,9 +50,9 @@ npm run build --workspace=settlement
 npm run build --workspace=payment-worker
 ```
 
-This does not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL` and `REDIS_URL` before starting services. The PM2 ecosystem loads that file for each backend process.
+This does not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). The PM2 ecosystem loads that file for each backend process.
 
-Start the API, draw engine, and settlement worker with:
+Start the API and backend workers with:
 
 ```bash
 pm2 start ecosystem.config.js
@@ -63,10 +63,10 @@ pm2 startup
 To view their live logs:
 
 ```bash
-pm2 logs lucky6-backend lucky6-engine lucky6-settlement
+pm2 logs lucky6-backend lucky6-engine lucky6-settlement lucky6-payment-worker
 ```
 
-**Database safety:** Do not use `npm run start:prod --workspace=backend` on production; that script runs `prisma db push --accept-data-loss` and seeds the database on every start. Review and apply a deliberate production database migration separately before starting services. The payment worker is not in the default PM2 process list; configure and enable it separately only after its Solana RPC and treasury settings have been reviewed.
+**Database safety:** Do not use `npm run start:prod --workspace=backend` on production; that script runs `prisma db push --accept-data-loss` and seeds the database on every start. Review and apply a deliberate production database migration separately before starting services. The payment worker uses the configured Solana RPC and treasury public address; do not put wallet signing secrets in this environment or in the API/frontend.
 
 ## 5. Domain & Nginx Configuration (luckyapi.muizdev.xyz)
 
