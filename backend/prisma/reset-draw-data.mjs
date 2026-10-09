@@ -1,5 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import { PrismaClient } from '../dist/generated/prisma/client.js';
 
 if (!process.argv.includes('--confirm-reset-draw-data')) {
   throw new Error('Pass --confirm-reset-draw-data to delete draws and their bets.');
