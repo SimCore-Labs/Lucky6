@@ -28,7 +28,7 @@ ssh -i C:\path\to\wesheild.pem ubuntu@16.16.90.151
 
 ## 3. GitHub Actions Continuous Deployment (CI/CD)
 
-A GitHub Actions workflow is configured in `.github/workflows/deploy.yml`. When you push updates to `main` (for backend services), it will automatically SSH into the EC2 instance, pull the latest code, build it, and reload PM2.
+The deployment workflow currently exists as `.github/workflows/deploy.yml.disabled` and does not run. Manual deployments should update the backend services only; keep the Next.js frontend on Vercel.
 
 **Required GitHub Secrets:**
 Go to your GitHub repository -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**.
@@ -36,24 +36,37 @@ Add the following:
 1. `EC2_HOST`: `16.16.90.151`
 2. `EC2_SSH_KEY`: The **entire contents** of your `wesheild.pem` file (including `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----`).
 
-## 4. PM2 Process Management
+## 4. EC2 Installation and PM2 Process Management
 
-The backend is configured to run automatically using PM2 via `ecosystem.config.js`.
+The EC2 host needs Node.js 20+, npm, PM2, and Redis. Install only the backend workspaces and their shared contracts from the monorepo root:
 
-On the server, start all services at once:
 ```bash
 cd ~/Lucky6
+npm ci --workspace=@lucky-six/contracts --workspace=backend --workspace=engine --workspace=settlement --workspace=payment-worker
+npm run build --workspace=@lucky-six/contracts
+npm run build --workspace=backend
+npm run build --workspace=engine
+npm run build --workspace=settlement
+npm run build --workspace=payment-worker
+```
+
+This does not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL` and `REDIS_URL` before starting services. The PM2 ecosystem loads that file for each backend process.
+
+Start the API, draw engine, and settlement worker with:
+
+```bash
 pm2 start ecosystem.config.js
 pm2 save
 pm2 startup
 ```
 
-To view live logs across all microservices:
+To view their live logs:
+
 ```bash
-pm2 logs
+pm2 logs lucky6-backend lucky6-engine lucky6-settlement
 ```
 
-*Note on Database Migrations:* The backend PM2 script (`npm run start:prod --workspace=backend`) is configured to automatically run `npx prisma db push` and `npx tsx prisma/seed.ts` before launching the NestJS API. This ensures the live AWS RDS Postgres database is perfectly synced with the latest code on every auto-deployment.
+**Database safety:** Do not use `npm run start:prod --workspace=backend` on production; that script runs `prisma db push --accept-data-loss` and seeds the database on every start. Review and apply a deliberate production database migration separately before starting services. The payment worker is not in the default PM2 process list; configure and enable it separately only after its Solana RPC and treasury settings have been reviewed.
 
 ## 5. Domain & Nginx Configuration (luckyapi.muizdev.xyz)
 
@@ -72,7 +85,7 @@ server {
     server_name luckyapi.muizdev.xyz;
 
     location / {
-        proxy_pass http://127.0.0.1:3000; # Assuming backend runs on 3000
+        proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -97,7 +110,7 @@ sudo certbot --nginx -d luckyapi.muizdev.xyz
 
 ## 6. Frontend Hosting Strategy
 
-**Highly Recommended: Do not host the Next.js frontend on the EC2 machine.**
-- Host the `frontend` workspace on **Vercel** or **Netlify**.
+**Do not host the Next.js frontend on the EC2 machine.**
+- Import the repository into **Vercel** and set the project Root Directory to `frontend`. Vercel builds and hosts that workspace separately; the EC2 PM2 configuration does not include it.
 - **Why?** Next.js App Router relies heavily on Edge caching, CDN distribution, and optimized serverless image rendering. Vercel provides this out of the box globally. Putting it on a single `t3.small` EC2 instance next to four heavy backend node processes will severely limit frontend performance, cause memory exhaustion, and slow down your players' WebSocket connections.
 - **Setup:** Connect your GitHub repo to Vercel, set the Root Directory to `frontend`, and configure your environment variable `NEXT_PUBLIC_API_URL=https://luckyapi.muizdev.xyz`.

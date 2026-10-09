@@ -1,33 +1,29 @@
 module.exports = {
+  // Keep the frontend on Vercel; EC2 runs only the API and backend workers.
   apps: [
     {
       name: 'lucky6-backend',
-      script: 'npm',
-      args: 'run start:prod --workspace=backend',
+      cwd: __dirname,
+      script: 'backend/dist/main.js',
+      node_args: '--env-file=backend/.env',
       env: {
         NODE_ENV: 'production',
       },
     },
     {
       name: 'lucky6-engine',
-      script: 'npm',
-      args: 'run start:prod --workspace=engine',
+      cwd: __dirname,
+      script: 'engine/dist/main.js',
+      node_args: '--env-file=backend/.env',
       env: {
         NODE_ENV: 'production',
       },
     },
     {
       name: 'lucky6-settlement',
-      script: 'npm',
-      args: 'run start:prod --workspace=settlement',
-      env: {
-        NODE_ENV: 'production',
-      },
-    },
-    {
-      name: 'lucky6-payment-worker',
-      script: 'npm',
-      args: 'run start:prod --workspace=payment-worker',
+      cwd: __dirname,
+      script: 'settlement/dist/main.js',
+      node_args: '--env-file=backend/.env',
       env: {
         NODE_ENV: 'production',
       },
