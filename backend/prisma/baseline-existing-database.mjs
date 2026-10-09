@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
 
@@ -13,8 +13,9 @@ if (!connectionString) {
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
 });
-const require = createRequire(import.meta.url);
-const prismaCli = require.resolve('prisma');
+const prismaCli = fileURLToPath(
+  new URL('../node_modules/prisma/build/index.js', import.meta.url),
+);
 const backendDirectory = new URL('..', import.meta.url);
 
 function normalizeSql(sql) {
