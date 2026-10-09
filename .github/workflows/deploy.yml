@@ -43,10 +43,9 @@ jobs:
             git pull --ff-only origin main
             npm ci --workspace=@lucky-six/contracts --workspace=backend --workspace=engine --workspace=settlement --workspace=payment-worker
             npm run build --workspace=@lucky-six/contracts
-            npm run db:generate --workspace=backend
+            npm run build --workspace=backend
             npm run db:migrate:baseline-existing --workspace=backend
             npm run db:migrate:deploy --workspace=backend
-            npm run build --workspace=backend
             npm run build --workspace=@lucky-six/engine
             npm run build --workspace=@lucky-six/settlement
             npm run build --workspace=@lucky-six/payment-worker

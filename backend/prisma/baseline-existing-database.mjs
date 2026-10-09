@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import { PrismaClient } from '../dist/generated/prisma/client.js';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -90,7 +90,10 @@ try {
         '--script',
       ]);
       const expectedSql = readFileSync(
-        new URL('./migrations/20261009210000_add_draw_status_draw_number_index/migration.sql', import.meta.url),
+        new URL(
+          './migrations/20261009210000_add_draw_status_draw_number_index/migration.sql',
+          import.meta.url,
+        ),
         'utf8',
       );
 
