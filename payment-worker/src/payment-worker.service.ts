@@ -116,7 +116,6 @@ export class PaymentWorkerService implements OnModuleInit {
         signature,
         treasuryAddress,
         order.expectedLamports,
-        actualLamportsOverride,
       );
 
       // Record transaction record if not present

@@ -1,223 +1,112 @@
-import { PrismaClient } from '../src/generated/prisma/index.js';
+import { PrismaClient } from '../src/generated/prisma/client.js';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL || 'postgres://postgres:Ayomidemuiz20@muiz-dev-solutions-db.cdkwoegsgo9h.eu-north-1.rds.amazonaws.com:5432/lucky6?sslmode=no-verify';
+const pool = new pg.Pool({ connectionString, ssl: { rejectUnauthorized: false } });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+async function upsertOddsForSelection(selectionId: string, oddsValue: number) {
+  // Check if an odds record already exists for this selection at version 1
+  const existing = await prisma.marketOdds.findFirst({
+    where: { selectionId, version: 1 },
+  });
+  if (!existing) {
+    await prisma.marketOdds.create({
+      data: { selectionId, oddsValue, version: 1 },
+    });
+  }
+}
 
 async function main() {
-  console.log('Seeding market catalogue and pricing configuration...');
+  console.log('Seeding Database...');
 
-  // 1. Pricing Config
-  await prisma.pricingConfig.upsert({
-    where: { key: 'default' },
-    update: {},
-    create: {
-      key: 'default',
-      houseMargin: 0.08, // 8% default margin
-      exposureFactor: 0.05,
-      parameters: {
-        jackpotAppearanceProbability: 0.02,
-      },
-    },
-  });
-
-  // 2. Individual Numbers Market (1 - 48)
-  const numMarket = await prisma.market.upsert({
-    where: { type: 'INDIVIDUAL_NUMBER' },
-    update: {},
-    create: {
-      type: 'INDIVIDUAL_NUMBER',
-      title: 'Individual Numbers',
-      description: 'Bet on whether a specific number (1-48) is drawn.',
-      active: true,
-    },
-  });
-
-  for (let i = 1; i <= 48; i++) {
-    const val = i.toString();
-    await prisma.marketSelection.upsert({
-      where: {
-        marketId_value: {
-          marketId: numMarket.id,
-          value: val,
-        },
-      },
-      update: {},
-      create: {
-        marketId: numMarket.id,
-        value: val,
-        label: `Number ${val}`,
-      },
-    });
-  }
-
-  // 3. Black 49 / Jackpot Market
-  const jackpotMarket = await prisma.market.upsert({
-    where: { type: 'BLACK_JACKPOT' },
-    update: {},
-    create: {
-      type: 'BLACK_JACKPOT',
-      title: '49 Black Jackpot',
-      description: 'Bet on whether ball 49 (Black Jackpot) appears in the draw.',
-      active: true,
-    },
-  });
-
-  for (const [val, label] of [
-    ['YES', 'Ball 49 Appears'],
-    ['NO', 'No Ball 49'],
-  ]) {
-    await prisma.marketSelection.upsert({
-      where: {
-        marketId_value: {
-          marketId: jackpotMarket.id,
-          value: val,
-        },
-      },
-      update: {},
-      create: {
-        marketId: jackpotMarket.id,
-        value: val,
-        label,
-      },
-    });
-  }
-
-  // 4. Color Majority Market
-  const colorMajorityMarket = await prisma.market.upsert({
-    where: { type: 'COLOR_MAJORITY' },
-    update: {},
-    create: {
-      type: 'COLOR_MAJORITY',
-      title: 'Color Majority',
-      description: 'Which color will have the majority of drawn balls?',
-      active: true,
-    },
-  });
-
-  for (const [val, label] of [
-    ['BLUE', 'Blue Majority'],
-    ['YELLOW', 'Yellow Majority'],
-    ['RED', 'Red Majority'],
-    ['GREEN', 'Green Majority'],
-    ['NO_MAJORITY', 'No Majority / Tie'],
-  ]) {
-    await prisma.marketSelection.upsert({
-      where: {
-        marketId_value: {
-          marketId: colorMajorityMarket.id,
-          value: val,
-        },
-      },
-      update: {},
-      create: {
-        marketId: colorMajorityMarket.id,
-        value: val,
-        label,
-      },
-    });
-  }
-
-  // 5. Sum High / Mid / Low Market
-  const sumHmlMarket = await prisma.market.upsert({
-    where: { type: 'SUM_HIGH_MID_LOW' },
-    update: {},
-    create: {
-      type: 'SUM_HIGH_MID_LOW',
-      title: 'Total Sum (High/Mid/Low)',
-      description: 'Total sum of drawn ball numbers.',
-      active: true,
-    },
-  });
-
-  for (const [val, label] of [
-    ['LOW', 'Low (15 - 120)'],
-    ['MID', 'Mid (121 - 170)'],
-    ['HIGH', 'High (171 - 280)'],
-  ]) {
-    await prisma.marketSelection.upsert({
-      where: {
-        marketId_value: {
-          marketId: sumHmlMarket.id,
-          value: val,
-        },
-      },
-      update: {},
-      create: {
-        marketId: sumHmlMarket.id,
-        value: val,
-        label,
-      },
-    });
-  }
-
-  // 6. Sum Odd / Even Market
-  const sumOddEvenMarket = await prisma.market.upsert({
-    where: { type: 'SUM_ODD_EVEN' },
-    update: {},
-    create: {
-      type: 'SUM_ODD_EVEN',
-      title: 'Total Sum Odd or Even',
-      description: 'Is the total sum of drawn ball numbers Odd or Even?',
-      active: true,
-    },
-  });
-
-  for (const [val, label] of [
-    ['ODD', 'Sum is Odd'],
-    ['EVEN', 'Sum is Even'],
-  ]) {
-    await prisma.marketSelection.upsert({
-      where: {
-        marketId_value: {
-          marketId: sumOddEvenMarket.id,
-          value: val,
-        },
-      },
-      update: {},
-      create: {
-        marketId: sumOddEvenMarket.id,
-        value: val,
-        label,
-      },
-    });
-  }
-
-  // 7. First Ball Color Market
-  const firstBallColorMarket = await prisma.market.upsert({
+  // ─── 1. Markets ───────────────────────────────────────────────
+  const firstBallColor = await prisma.market.upsert({
     where: { type: 'FIRST_BALL_COLOR' },
     update: {},
     create: {
-      type: 'FIRST_BALL_COLOR',
       title: 'First Ball Color',
-      description: 'The color of the first drawn ball.',
+      description: 'Predict the color of the first drawn ball.',
+      type: 'FIRST_BALL_COLOR',
       active: true,
     },
   });
 
-  for (const color of ['BLUE', 'YELLOW', 'RED', 'GREEN', 'BLACK']) {
-    await prisma.marketSelection.upsert({
-      where: {
-        marketId_value: {
-          marketId: firstBallColorMarket.id,
-          value: color,
-        },
-      },
-      update: {},
+  const sumOverUnder = await prisma.market.upsert({
+    where: { type: 'SUM_OVER_UNDER' },
+    update: {},
+    create: {
+      title: 'Sum Over/Under 122.5',
+      description: 'Predict if the total of the 6 drawn balls will be over or under 122.5.',
+      type: 'SUM_OVER_UNDER',
+      active: true,
+    },
+  });
+
+  console.log(`  Markets upserted: ${firstBallColor.id}, ${sumOverUnder.id}`);
+
+  // ─── 2. Selections & Odds for First Ball Color ─────────────────
+  // Color bands: 1-12 BLUE, 13-24 YELLOW, 25-36 RED, 37-48 GREEN, 49 BLACK
+  // With 6 balls drawn from 35 and first ball's color as market:
+  // Each non-black color covers 12 of 48 numbers = 25% chance → ~4.0 fair odds
+  // BLACK (49) is drawn with ~1/7 probability when it appears in pool → ~48.0 fair odds
+  const colors = [
+    { value: 'BLUE',   label: 'Blue (1–12)',       odds: 4.0  },
+    { value: 'YELLOW', label: 'Yellow (13–24)',     odds: 4.0  },
+    { value: 'RED',    label: 'Red (25–36)',        odds: 4.0  },
+    { value: 'GREEN',  label: 'Green (37–48)',      odds: 4.0  },
+    { value: 'BLACK',  label: 'Black Jackpot (49)', odds: 48.0 },
+  ];
+
+  for (const color of colors) {
+    // Upsert by composite unique key [marketId, value]
+    const selection = await prisma.marketSelection.upsert({
+      where: { marketId_value: { marketId: firstBallColor.id, value: color.value } },
+      update: { label: color.label },
       create: {
-        marketId: firstBallColorMarket.id,
-        value: color,
-        label: `${color} First Ball`,
+        marketId: firstBallColor.id,
+        value: color.value,
+        label: color.label,
       },
     });
+    await upsertOddsForSelection(selection.id, color.odds);
+    console.log(`  Selection upserted: ${color.label}`);
   }
 
-  console.log('Seed completed successfully!');
+  // ─── 3. Selections & Odds for Sum Over/Under ───────────────────
+  // With 6 balls drawn from 1–48 range (+49 black), average total ≈ 122.5
+  const sumOptions = [
+    { value: 'OVER',  label: 'Over 122.5',  odds: 1.9 },
+    { value: 'UNDER', label: 'Under 122.5', odds: 1.9 },
+  ];
+
+  for (const opt of sumOptions) {
+    const selection = await prisma.marketSelection.upsert({
+      where: { marketId_value: { marketId: sumOverUnder.id, value: opt.value } },
+      update: { label: opt.label },
+      create: {
+        marketId: sumOverUnder.id,
+        value: opt.value,
+        label: opt.label,
+      },
+    });
+    await upsertOddsForSelection(selection.id, opt.odds);
+    console.log(`  Selection upserted: ${opt.label}`);
+  }
+
+  console.log('\n✅ Seeding completed successfully!');
+  console.log('   Markets seeded: 2 (First Ball Color, Sum Over/Under)');
+  console.log('   Selections seeded: 7 (5 colors + 2 sum options)');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Seeding failed:', e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

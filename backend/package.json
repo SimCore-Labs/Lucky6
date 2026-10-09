@@ -7,7 +7,7 @@
     "build": "prisma generate && nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main.js",
+    "start:prod": "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts && node dist/main.js",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
     "db:migrate:dev": "prisma migrate dev",
@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "deploy:setup": "npx prisma db push && npx tsx prisma/seed.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.1",
@@ -28,15 +29,16 @@
     "@nestjs/platform-fastify": "^12.1.2",
     "@nestjs/platform-socket.io": "^12.1.2",
     "@nestjs/websockets": "^12.1.2",
-    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "7.10.0",
+    "@solana/kit": "^2.1.0",
+    "bs58": "^6.0.0",
     "dotenv": "^16.6.1",
     "ioredis": "^5.6.1",
     "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.4",
-    "@solana/kit": "^2.1.0",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
@@ -50,6 +52,8 @@
     "prettier": "^3.4.2",
     "prisma": "7.10.0",
     "supertest": "^7.0.0",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   }

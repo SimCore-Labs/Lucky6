@@ -6,8 +6,8 @@
 - [x] Verify live PostgreSQL connection using Prisma Client.
 
 ## Phase 2: Dynamic Odds & Seed Data
-- [ ] Seed Lucky Six markets, selections, and pricing parameters (`prisma/seed.ts`).
-- [ ] Verify `PricingEngineService` computes dynamic versioned odds based on house margin and exposure without static hardcoded odds.
+- [x] Seed Lucky Six markets, selections, and pricing parameters (`prisma/seed.ts`).
+- [x] Verify `PricingEngineService` computes dynamic versioned odds based on house margin and exposure without static hardcoded odds.
 
 ## Phase 3: The Draw Engine (`@lucky-six/engine`)
 - [x] Implement 5-minute scheduler loop and DB state machine (`OPEN` -> `CLOSED` -> `DRAWING` -> `SETTLEMENT` -> `SETTLED`).

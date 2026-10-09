@@ -1,0 +1,44 @@
+name: Deploy Lucky6 Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'engine/**'
+      - 'settlement/**'
+      - 'payment-worker/**'
+      - 'contracts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'ecosystem.config.js'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/Lucky6
+            git pull origin main
+            npm install
+            
+            # Build all workspaces
+            npm run build --workspace=backend
+            npm run build --workspace=engine
+            npm run build --workspace=settlement
+            npm run build --workspace=payment-worker
+
+            # Reload all PM2 processes (this also triggers the db push & seed step in backend's start:prod)
+            pm2 reload ecosystem.config.js --update-env
+            pm2 save

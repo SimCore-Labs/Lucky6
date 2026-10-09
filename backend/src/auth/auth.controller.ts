@@ -12,7 +12,7 @@ import { z } from 'zod';
 import crypto from 'node:crypto';
 import type { FastifyReply } from 'fastify';
 import nacl from 'tweetnacl';
-import { getBase58Encoder } from '@solana/kit';
+import bs58 from 'bs58';
 
 const authNonceSchema = z.object({
   address: z.string().min(32).max(44),
@@ -91,9 +91,8 @@ export class AuthController {
     if (signature.startsWith('TEST_SIGNATURE_')) {
       isSigValid = true;
     } else {
-      try {
-        const b58 = getBase58Encoder();
-        const pubKeyBytes = new Uint8Array(b58.encode(address));
+    try {
+        const pubKeyBytes = bs58.decode(address);
         const msgBytes = new TextEncoder().encode(expectedMessage);
         let sigBytes: Uint8Array;
         if (/^[0-9a-fA-F]+$/.test(signature)) {
@@ -101,7 +100,8 @@ export class AuthController {
         } else if (signature.includes('/') || signature.includes('+') || signature.endsWith('=')) {
           sigBytes = Buffer.from(signature, 'base64');
         } else {
-          sigBytes = new Uint8Array(b58.encode(signature));
+          // Default: treat as base58 (Phantom/Solflare return base58-encoded signatures)
+          sigBytes = bs58.decode(signature);
         }
         isSigValid = nacl.sign.detached.verify(msgBytes, sigBytes, pubKeyBytes);
       } catch (err) {
