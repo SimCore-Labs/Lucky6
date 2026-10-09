@@ -1,0 +1,35 @@
+name: Deploy Lucky Six engine to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'engine/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-lucky6-engine
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy engine to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/Lucky6-deploy
+            git pull --ff-only origin main
+            npm install --workspace=@lucky-six/contracts --workspace=@lucky-six/engine --workspace=lucky-six-backend --workspace=@lucky-six/settlement --workspace=@lucky-six/payment-worker
+            npm run build --workspace=@lucky-six/contracts
+            npm run build --workspace=@lucky-six/engine
+            pm2 reload lucky6-engine --update-env
+            pm2 save

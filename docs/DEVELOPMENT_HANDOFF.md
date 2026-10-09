@@ -50,7 +50,7 @@ npm run build --workspace=settlement
 npm run build --workspace=payment-worker
 ```
 
-The active deployment checkout is `~/Lucky6-deploy`; it was created to preserve the pre-existing `~/Lucky6` checkout and its local lockfile change. These commands do not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). The PM2 ecosystem loads that file for each backend process.
+The active deployment checkout is `~/Lucky6-deploy`; it was created to preserve the pre-existing `~/Lucky6` checkout and its local lockfile change. These commands do not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). For local frontend development against the deployed API, add `http://localhost:3000` as a comma-separated second origin. The PM2 ecosystem loads that file for each backend process; restart `lucky6-backend` after changing it.
 
 Start the API and backend workers with:
 

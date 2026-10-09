@@ -3,16 +3,16 @@ import { createTheme } from '@mui/material/styles';
 export const theme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#74a9ff' },
-    secondary: { main: '#edbb68' },
-    background: { default: '#101a2a', paper: '#18263a' },
-    text: { primary: '#f3f4ef', secondary: '#aab6c5' },
-    success: { main: '#61c49b' },
-    error: { main: '#e48679' },
+    primary: { main: '#73d9cb' },
+    secondary: { main: '#f4c66e' },
+    background: { default: '#0b1421', paper: '#19283a' },
+    text: { primary: '#f3f0e8', secondary: '#a6b1bd' },
+    success: { main: '#70c9a5' },
+    error: { main: '#eb897a' },
   },
-  shape: { borderRadius: 14 },
+  shape: { borderRadius: 3 },
   typography: {
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: '"Avenir Next", Avenir, "Segoe UI", sans-serif',
     h1: {
       fontSize: 'clamp(2.6rem, 6vw, 5.4rem)',
       fontWeight: 700,
