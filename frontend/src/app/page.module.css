@@ -9,8 +9,8 @@
 }
 
 :global(body) {
-  background: #dfe8e6;
-  color: #17343a;
+  background: #fff;
+  color: #17212b;
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -19,18 +19,16 @@
 }
 
 .page {
-  --ball-size: clamp(2.7rem, 7vw, 4.4rem);
-  --ball-gap: clamp(0.35rem, 1.7vw, 0.9rem);
+  --ball-size: clamp(2.65rem, 6vw, 3.5rem);
+  --ball-gap: clamp(0.4rem, 1.4vw, 0.7rem);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(2.5rem, 8vh, 5rem);
-  padding: clamp(1.25rem, 5vw, 3.5rem) 1rem;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgb(255 255 255 / 63%), transparent 55%),
-    #dfe8e6;
+  gap: clamp(3rem, 9vh, 5rem);
+  padding: clamp(2rem, 6vh, 4rem) 1rem;
+  background: #fff;
 }
 
 .drawStage {
@@ -50,106 +48,77 @@
 
 .drawBall,
 .numberBall {
-  position: relative;
-  isolation: isolate;
   display: grid;
   place-items: center;
   flex: 0 0 var(--ball-size);
   width: var(--ball-size);
   height: var(--ball-size);
-  border: 1px solid rgb(16 38 43 / 15%);
+  border: 1px solid rgb(0 0 0 / 12%);
   border-radius: 50%;
   color: #fff;
   font-size: clamp(1rem, 2.6vw, 1.55rem);
   font-weight: 700;
   line-height: 1;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 35%);
-  box-shadow:
-    inset 0 2px 4px rgb(255 255 255 / 58%),
-    inset 0 -5px 8px rgb(0 0 0 / 15%),
-    0 5px 10px rgb(24 48 51 / 17%);
-}
-
-.drawBall::before,
-.numberBall::before {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(145deg, rgb(255 255 255 / 48%), transparent 46%);
-  content: '';
+  text-shadow: 0 1px 1px rgb(0 0 0 / 28%);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 14%);
 }
 
 .emptyBall {
-  border: 1px dashed #94aaa5;
-  background: rgb(255 255 255 / 24%);
+  border: 1px dashed #c5cbd1;
+  background: #fff;
   box-shadow: none;
   text-shadow: none;
 }
 
-.emptyBall::before {
-  display: none;
-}
-
 .redBall {
-  background-color: #df4f48;
-  background-image: radial-gradient(circle at 34% 25%, #ff9b83, #df4f48 54%, #a92d32);
+  background-color: #e3262e;
 }
 
 .blueBall {
-  background-color: #318db7;
-  background-image: radial-gradient(circle at 34% 25%, #9be4f2, #318db7 54%, #1b527c);
+  background-color: #1769c2;
 }
 
 .greenBall {
-  background-color: #34966d;
-  background-image: radial-gradient(circle at 34% 25%, #a6e7a7, #34966d 54%, #176346);
+  background-color: #148044;
 }
 
 .blackBall {
-  background-color: #29353a;
-  background-image: radial-gradient(circle at 34% 25%, #6a7779, #29353a 54%, #090f12);
+  background-color: #17191c;
 }
 
 .legacyYellowBall {
-  background-color: #d8a92d;
-  background-image: radial-gradient(circle at 34% 25%, #ffed9c, #d8a92d 54%, #987010);
+  background-color: #bd8700;
 }
 
 .countdown {
   min-width: 5rem;
   margin: 0;
-  color: #31575b;
+  color: #303943;
   font-size: 1.05rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  letter-spacing: 0.08em;
   text-align: center;
 }
 
 .numberPicker {
-  width: min(100%, 56rem);
+  width: min(100%, 36rem);
 }
 
 .numberGrid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   justify-items: center;
-  gap: clamp(0.35rem, 2vw, 0.85rem);
-}
-
-.numberBall:last-child {
-  grid-column: 12;
+  gap: clamp(0.25rem, 1vw, 0.45rem);
 }
 
 .numberBall {
   flex-basis: auto;
-  width: min(100%, var(--ball-size));
+  width: min(100%, 2.35rem);
   height: auto;
   aspect-ratio: 1;
   padding: 0;
   cursor: pointer;
-  font-size: clamp(0.8rem, 2.3vw, 1.15rem);
+  font-size: 0.9rem;
   transition:
     transform 130ms ease,
     border-color 130ms ease,
@@ -161,18 +130,14 @@
 }
 
 .numberBall:focus-visible {
-  outline: 3px solid #17343a;
-  outline-offset: 3px;
+  outline: 2px solid #17212b;
+  outline-offset: 2px;
 }
 
 .selectedBall {
-  border: 3px solid #fff;
-  box-shadow:
-    inset 0 2px 4px rgb(255 255 255 / 58%),
-    inset 0 -5px 8px rgb(0 0 0 / 15%),
-    0 0 0 2px #17343a,
-    0 5px 10px rgb(24 48 51 / 17%);
-  transform: scale(1.06);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #17212b, 0 2px 4px rgb(0 0 0 / 14%);
+  transform: scale(1.08);
 }
 
 .errorMessage {
@@ -200,12 +165,16 @@
 }
 
 @media (max-width: 600px) {
-  .numberGrid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+  .page {
+    gap: 3.5rem;
   }
 
-  .numberBall:last-child {
-    grid-column: 7;
+  .numberPicker {
+    width: min(100%, 21rem);
+  }
+
+  .numberGrid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
 
