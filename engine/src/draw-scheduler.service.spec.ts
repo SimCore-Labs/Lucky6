@@ -46,19 +46,67 @@ describe('DrawSchedulerService', () => {
     expect(findFirst).toHaveBeenCalledWith({
       where: {
         status: {
-          in: [
-            'OPEN',
-            'CLOSING',
-            'CLOSED',
-            'DRAWING',
-            'RESULT_READY',
-            'SETTLEMENT_PENDING',
-          ],
+          in: ['OPEN', 'CLOSING', 'CLOSED', 'DRAWING'],
         },
       },
       orderBy: { drawNumber: 'asc' },
       include: { balls: true, statistics: true },
     });
+  });
+
+  it('ignores settlement-pending draws when creating the next round', async () => {
+    const previousDraw = {
+      id: 'settled-draw-id',
+      drawNumber: 5,
+      status: 'SETTLEMENT_PENDING',
+      closeAt: new Date(Date.now() - 60_000),
+      drawAt: new Date(Date.now() - 30_000),
+      balls: [],
+      statistics: null,
+    };
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    const create = vi.fn().mockResolvedValue({
+      ...previousDraw,
+      id: 'next-draw-id',
+      drawNumber: 6,
+      status: 'OPEN',
+      openAt: new Date(),
+      closeAt: new Date(Date.now() + 4 * 60_000),
+      drawAt: new Date(Date.now() + 4.5 * 60_000),
+    });
+    const transaction = vi.fn(async (callback) =>
+      callback({
+        $queryRaw: vi.fn(),
+        draw: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({ drawNumber: 5 }),
+          create,
+        },
+      }),
+    );
+    const prisma = {
+      draw: { findFirst },
+      $transaction: transaction,
+    } as never;
+    const publish = vi.fn().mockResolvedValue(1);
+    const redis = { publish } as never;
+    const scheduler = new DrawSchedulerService(prisma, redis);
+
+    await scheduler.processDrawLifecycle();
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ drawNumber: 6 }),
+      include: { balls: true, statistics: true },
+    });
+    expect(publish).toHaveBeenCalledWith(
+      'lucky-six:events',
+      expect.objectContaining({ event: 'draw.created' }),
+    );
   });
 
   it('creates draw 1 when there is no draw history', async () => {

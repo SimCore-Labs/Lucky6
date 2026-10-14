@@ -30,11 +30,13 @@ export class DrawSchedulerService implements OnModuleInit {
     try {
       const now = new Date();
 
-      // Find active draw
+      // Only treat live betting/result-generation states as blocking for the
+      // engine. A completed draw that is awaiting settlement should not stall the
+      // next round; settlement runs independently and can mark it SETTLED later.
       let currentDraw = await this.prisma.draw.findFirst({
         where: {
           status: {
-            in: ['OPEN', 'CLOSING', 'CLOSED', 'DRAWING', 'RESULT_READY', 'SETTLEMENT_PENDING'],
+            in: ['OPEN', 'CLOSING', 'CLOSED', 'DRAWING'],
           },
         },
         orderBy: { drawNumber: 'asc' },
@@ -53,14 +55,7 @@ export class DrawSchedulerService implements OnModuleInit {
           const activeDraw = await tx.draw.findFirst({
             where: {
               status: {
-                in: [
-                  'OPEN',
-                  'CLOSING',
-                  'CLOSED',
-                  'DRAWING',
-                  'RESULT_READY',
-                  'SETTLEMENT_PENDING',
-                ],
+                in: ['OPEN', 'CLOSING', 'CLOSED', 'DRAWING'],
               },
             },
             orderBy: { drawNumber: 'asc' },
