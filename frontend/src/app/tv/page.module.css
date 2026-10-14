@@ -45,8 +45,7 @@
   text-decoration: none;
 }
 
-.wordmark span,
-.tvFooter > span > span {
+.wordmark span {
   color: #ffdf20;
 }
 
@@ -69,7 +68,14 @@
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
+}
+
+.connectedDot {
   background: #4ee17f;
+}
+
+.disconnectedDot {
+  background: #e9b446;
 }
 
 .board {
@@ -405,23 +411,6 @@
   padding: 1rem 0.5rem;
 }
 
-.tvFooter {
-  display: flex;
-  min-height: 40px;
-  align-items: center;
-  justify-content: space-between;
-  color: #c2d9ca;
-  font-size: 0.62rem;
-}
-
-.tvFooter a {
-  text-decoration: none;
-}
-
-.tvFooter a:hover {
-  color: #ffdf20;
-}
-
 @media (max-width: 950px) {
   .board {
     grid-template-columns: minmax(0, 1fr);
@@ -566,10 +555,6 @@
     min-height: 55px;
   }
 
-  .tvFooter {
-    min-height: 34px;
-    font-size: 0.56rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

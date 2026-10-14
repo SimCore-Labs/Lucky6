@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { io } from 'socket.io-client';
 import { ApiError, getDrawResults, type DrawResultsResponse } from '@/lib/api';
 import styles from './page.module.css';
 
-const refreshInterval = 30_000;
+const fallbackRefreshInterval = 5 * 60_000;
 const recentSlots = Array.from({ length: 5 }, (_, index) => index);
 const colorOrder = ['DRAW', 'RED', 'BLUE', 'GREEN', 'YELLOW'] as const;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 function ballColorClass(color: string, number: number): string {
   if (number === 49 || color === 'BLACK') return styles.blackBall;
@@ -31,13 +33,22 @@ function getSumRange(total: number): 'LOW' | 'MID' | 'HIGH' {
 export default function TvResultsPage() {
   const [data, setData] = useState<DrawResultsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   useEffect(() => {
     let active = true;
-    let timeoutId: number | undefined;
+    let refreshInProgress = false;
+    let refreshQueued = false;
     let controller: AbortController | undefined;
 
     const refresh = async () => {
+      if (!active) return;
+      if (refreshInProgress) {
+        refreshQueued = true;
+        return;
+      }
+
+      refreshInProgress = true;
       controller = new AbortController();
       try {
         const results = await getDrawResults(10, controller.signal);
@@ -54,15 +65,54 @@ export default function TvResultsPage() {
           );
         }
       } finally {
-        if (active) timeoutId = window.setTimeout(refresh, refreshInterval);
+        refreshInProgress = false;
+        if (active && refreshQueued) {
+          refreshQueued = false;
+          void refresh();
+        }
       }
     };
+
+    const socket = io(new URL(apiUrl).origin, {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionDelay: 1_000,
+      reconnectionDelayMax: 10_000,
+    });
+    const refreshOnDrawCompleted = () => {
+      void refresh();
+    };
+    const handleConnected = () => {
+      setSocketConnected(true);
+      void refresh();
+    };
+    const handleDisconnected = () => setSocketConnected(false);
+
+    socket.on('connect', handleConnected);
+    socket.on('disconnect', handleDisconnected);
+    socket.on('connect_error', handleDisconnected);
+    socket.on('draw.completed', refreshOnDrawCompleted);
+
+    const fallbackIntervalId = window.setInterval(
+      refreshOnDrawCompleted,
+      fallbackRefreshInterval,
+    );
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshOnDrawCompleted();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     void refresh();
     return () => {
       active = false;
       controller?.abort();
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      window.clearInterval(fallbackIntervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      socket.off('connect', handleConnected);
+      socket.off('disconnect', handleDisconnected);
+      socket.off('connect_error', handleDisconnected);
+      socket.off('draw.completed', refreshOnDrawCompleted);
+      socket.disconnect();
     };
   }, []);
 
@@ -80,7 +130,10 @@ export default function TvResultsPage() {
           LUCKY<span>6</span>
         </Link>
         <h1>Results &amp; statistics</h1>
-        <span className={styles.liveLabel}><i /> LIVE</span>
+        <span className={styles.liveLabel}>
+          <i className={socketConnected ? styles.connectedDot : styles.disconnectedDot} />
+          {socketConnected ? 'LIVE' : 'RECONNECTING'}
+        </span>
       </header>
 
       <div className={styles.board}>
@@ -229,10 +282,6 @@ export default function TvResultsPage() {
         </aside>
       </div>
 
-      <footer className={styles.tvFooter}>
-        <span>LUCKY<span>6</span> · RESULTS BOARD</span>
-        <Link href="/">Back to game</Link>
-      </footer>
     </main>
   );
 }
