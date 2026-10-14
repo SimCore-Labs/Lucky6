@@ -3,13 +3,33 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
-import { ApiError, getDrawResults, type DrawResultsResponse } from '@/lib/api';
+import {
+  ApiError,
+  getCurrentDraw,
+  getDrawResults,
+  type CurrentDrawResponse,
+  type DrawResultsResponse,
+} from '@/lib/api';
 import styles from './page.module.css';
 
 const fallbackRefreshInterval = 5 * 60_000;
+const liveDrawRefreshInterval = 3_000;
 const recentSlots = Array.from({ length: 5 }, (_, index) => index);
 const colorOrder = ['DRAW', 'RED', 'BLUE', 'GREEN', 'YELLOW'] as const;
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
+function getCountdownTarget(draw: CurrentDrawResponse | null): number | null {
+  if (!draw) return null;
+  return new Date(draw.status === 'OPEN' ? draw.closeAt : draw.drawAt).getTime();
+}
+
+function formatCountdown(milliseconds: number | null): string {
+  if (milliseconds === null) return '--:--';
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  return `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(
+    totalSeconds % 60,
+  ).padStart(2, '0')}`;
+}
 
 function ballColorClass(color: string, number: number): string {
   if (number === 49 || color === 'BLACK') return styles.blackBall;
@@ -32,8 +52,11 @@ function getSumRange(total: number): 'LOW' | 'MID' | 'HIGH' {
 
 export default function TvResultsPage() {
   const [data, setData] = useState<DrawResultsResponse | null>(null);
+  const [liveDraw, setLiveDraw] = useState<CurrentDrawResponse | null>(null);
+  const [liveDrawError, setLiveDrawError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -116,8 +139,70 @@ export default function TvResultsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    let timeoutId: number | undefined;
+    let controller: AbortController | undefined;
+
+    const refreshLiveDraw = async () => {
+      controller = new AbortController();
+      try {
+        const currentDraw = await getCurrentDraw(controller.signal);
+        if (active) {
+          setLiveDraw(currentDraw);
+          setLiveDrawError(null);
+        }
+      } catch (cause) {
+        if (active && !controller.signal.aborted) {
+          if (cause instanceof ApiError && cause.status === 404) {
+            setLiveDraw(null);
+            setLiveDrawError(null);
+          } else {
+            setLiveDrawError('Live draw unavailable');
+          }
+        }
+      } finally {
+        if (active) {
+          timeoutId = window.setTimeout(
+            refreshLiveDraw,
+            liveDrawRefreshInterval,
+          );
+        }
+      }
+    };
+
+    void refreshLiveDraw();
+    return () => {
+      active = false;
+      controller?.abort();
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateTime = () => setNow(Date.now());
+    updateTime();
+    const intervalId = window.setInterval(updateTime, 1_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   const results = data?.results ?? [];
+  const latestResult = results[0];
   const statistics = data?.statistics;
+  const loading = !data && !error;
+  const countdownTarget = getCountdownTarget(liveDraw);
+  const countdown =
+    countdownTarget === null ? null : countdownTarget - now;
+  const nextDrawNumber = liveDraw
+    ? liveDraw.balls.length === 6
+      ? liveDraw.drawNumber + 1
+      : liveDraw.drawNumber
+    : null;
+  const liveResultBalls = latestResult
+    ? [...latestResult.balls].sort(
+        (first, second) => first.orderIndex - second.orderIndex,
+      )
+    : [];
   const colors = statistics?.winningColors;
   const colorEntries = colorOrder
     .map((color) => ({ color, count: colors?.[color] ?? 0 }))
@@ -136,7 +221,7 @@ export default function TvResultsPage() {
         </span>
       </header>
 
-      <div className={styles.board}>
+      <div className={styles.board} aria-busy={loading}>
         <section className={styles.resultsSection} aria-labelledby="results-title">
           <h2 className={styles.sectionTitle} id="results-title">RESULTS</h2>
           <div className={styles.resultsTable} role="table" aria-label="Recent Lucky6 results">
@@ -146,6 +231,25 @@ export default function TvResultsPage() {
               <span role="columnheader">SUM</span>
               <span role="columnheader">WINNING COLOUR</span>
             </div>
+            {loading && Array.from({ length: 8 }, (_, index) => (
+              <div
+                className={`${styles.resultRow} ${index % 2 === 0 ? styles.rowEven : ''}`}
+                key={`loading-row-${index}`}
+                aria-hidden="true"
+              >
+                <span className={`${styles.skeleton} ${styles.skeletonDraw}`} />
+                <div className={styles.balls}>
+                  {Array.from({ length: 6 }, (_, ballIndex) => (
+                    <span
+                      className={`${styles.skeleton} ${styles.skeletonBall}`}
+                      key={`loading-ball-${ballIndex}`}
+                    />
+                  ))}
+                </div>
+                <span className={`${styles.skeleton} ${styles.skeletonSum}`} />
+                <span className={`${styles.skeleton} ${styles.skeletonColor}`} />
+              </div>
+            ))}
             {results.map((result, index) => (
               <div
                 className={`${styles.resultRow} ${index % 2 === 0 ? styles.rowEven : ''}`}
@@ -180,10 +284,7 @@ export default function TvResultsPage() {
                 </span>
               </div>
             ))}
-            {!data && !error && (
-              <p className={styles.message}>Loading results…</p>
-            )}
-            {error && (
+            {error && !data && (
               <p className={styles.message} role="alert">{error}</p>
             )}
             {data && results.length === 0 && !error && (
@@ -201,7 +302,15 @@ export default function TvResultsPage() {
           <section className={`${styles.statSection} ${styles.lateSection}`}>
             <h3 className={styles.statHeading}>MOST DELAYED NUMBERS</h3>
             <div className={styles.numberStats}>
-              {recentSlots.map((slot) => {
+              {loading
+                ? recentSlots.map((slot) => (
+                    <div className={styles.numberStat} key={`late-loading-${slot}`} aria-hidden="true">
+                      <span className={`${styles.skeleton} ${styles.skeletonBall}`} />
+                      <span className={`${styles.skeleton} ${styles.skeletonValue}`} />
+                      <small>draws</small>
+                    </div>
+                  ))
+                : recentSlots.map((slot) => {
                 const item = statistics?.lateNumbers[slot];
                 return item ? (
                   <div className={styles.numberStat} key={item.number}>
@@ -222,18 +331,30 @@ export default function TvResultsPage() {
             </div>
             <div className={styles.statSummary}>
               <span>MAXIMUM DELAY</span>
-              <strong>
-                {statistics && statistics.drawsAnalyzed > 0
-                  ? statistics.maxDelay
-                  : '—'}
-              </strong>
+              {loading ? (
+                <span className={`${styles.skeleton} ${styles.skeletonSummary}`} />
+              ) : (
+                <strong>
+                  {statistics && statistics.drawsAnalyzed > 0
+                    ? statistics.maxDelay
+                    : '—'}
+                </strong>
+              )}
             </div>
           </section>
 
           <section className={`${styles.statSection} ${styles.hotSection}`}>
             <h3 className={styles.statHeading}>HOT NUMBERS · LAST {statistics?.drawsAnalyzed ?? 20} DRAWS</h3>
             <div className={styles.numberStats}>
-              {recentSlots.map((slot) => {
+              {loading
+                ? recentSlots.map((slot) => (
+                    <div className={styles.numberStat} key={`hot-loading-${slot}`} aria-hidden="true">
+                      <span className={`${styles.skeleton} ${styles.skeletonBall}`} />
+                      <span className={`${styles.skeleton} ${styles.skeletonValue}`} />
+                      <small>times</small>
+                    </div>
+                  ))
+                : recentSlots.map((slot) => {
                 const item = statistics?.hotNumbers[slot];
                 return item ? (
                   <div className={styles.numberStat} key={item.number}>
@@ -259,7 +380,11 @@ export default function TvResultsPage() {
             <div className={styles.categoryStats}>
               {(['LOW', 'MID', 'HIGH'] as const).map((range) => (
                 <div className={styles.categoryStat} key={range}>
-                  <strong>{statistics?.sumBands[range] ?? '—'}</strong>
+                  {loading ? (
+                    <span className={`${styles.skeleton} ${styles.skeletonCategoryValue}`} />
+                  ) : (
+                    <strong>{statistics?.sumBands[range] ?? '—'}</strong>
+                  )}
                   <span>{range}</span>
                 </div>
               ))}
@@ -269,7 +394,14 @@ export default function TvResultsPage() {
           <section className={`${styles.statSection} ${styles.colorSection}`}>
             <h3 className={styles.statHeading}>WINNING COLOUR · LAST {statistics?.drawsAnalyzed ?? 20} DRAWS</h3>
             <div className={styles.categoryStats}>
-              {colorEntries.length > 0
+              {loading
+                ? colorOrder.map((color) => (
+                    <div className={styles.categoryStat} key={`color-loading-${color}`} aria-hidden="true">
+                      <span className={`${styles.skeleton} ${styles.skeletonCategoryValue}`} />
+                      <span className={`${styles.skeleton} ${styles.skeletonLabel}`} />
+                    </div>
+                  ))
+                : colorEntries.length > 0
                 ? colorEntries.map(({ color, count }) => (
                     <div className={styles.categoryStat} key={color}>
                       <strong className={colorClass(color)}>{count}</strong>
@@ -282,6 +414,40 @@ export default function TvResultsPage() {
         </aside>
       </div>
 
+      <footer className={styles.liveStrip} aria-label="Live draw information">
+        <div className={styles.liveBalls} aria-label="Latest result numbers">
+          {Array.from({ length: 6 }, (_, slot) => {
+            const ball = liveResultBalls[slot];
+            return (
+              <span
+                className={`${styles.liveBall} ${
+                  ball
+                    ? ballColorClass(ball.color, ball.number)
+                    : styles.liveBallEmpty
+                }`}
+                key={ball ? `${latestResult?.id}-${ball.orderIndex}` : `live-ball-${slot}`}
+                aria-label={ball ? `Number ${ball.number}` : 'Result loading'}
+              >
+                {ball?.number ?? ''}
+              </span>
+            );
+          })}
+        </div>
+        <div className={styles.liveDrawInfo}>
+          <span>CURRENT DRAW</span>
+          <strong>{latestResult ? `#${latestResult.drawNumber}` : 'Waiting for result'}</strong>
+        </div>
+        <div className={styles.liveCountdown}>
+          <span>{liveDraw?.status === 'OPEN' ? 'DRAW CLOSES IN' : 'NEXT DRAW EVENT IN'}</span>
+          <strong className={liveDrawError ? styles.liveError : undefined} aria-live="off">
+            {liveDrawError ?? formatCountdown(countdown)}
+          </strong>
+        </div>
+        <div className={styles.nextDrawInfo}>
+          <span>NEXT DRAW</span>
+          <strong>{nextDrawNumber ? `#${nextDrawNumber}` : '—'}</strong>
+        </div>
+      </footer>
     </main>
   );
 }

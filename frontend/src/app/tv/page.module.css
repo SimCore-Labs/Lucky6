@@ -9,7 +9,7 @@
 :global(body) {
   min-height: 100%;
   margin: 0;
-  background: #064426;
+  background: #080b09;
   color: #fff;
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -25,8 +25,8 @@
   --red: #c51d0b;
   width: 100%;
   min-height: 100vh;
-  padding: 0 15px;
-  background: #064426;
+  padding: 0 15px 128px;
+  background: #080b09;
 }
 
 .tvHeader {
@@ -279,7 +279,7 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: #050505;
+  background: #101311;
   text-align: center;
 }
 
@@ -325,7 +325,7 @@
 
 .statSummary strong {
   min-width: 39px;
-  background: #050505;
+  background: #101311;
   font-size: 1rem;
   text-align: center;
 }
@@ -411,6 +411,150 @@
   padding: 1rem 0.5rem;
 }
 
+.liveStrip {
+  position: fixed;
+  z-index: 10;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  min-height: 112px;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 2vw, 30px);
+  padding: 10px 18px;
+  background: #115432;
+  color: #fff;
+}
+
+.liveBalls {
+  display: flex;
+  align-items: center;
+  gap: clamp(5px, 0.8vw, 12px);
+}
+
+.liveBall {
+  display: grid;
+  width: clamp(40px, 5.4vw, 72px);
+  height: clamp(40px, 5.4vw, 72px);
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: clamp(1.2rem, 3vw, 2.6rem);
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+}
+
+.liveBallEmpty {
+  background: rgb(0 0 0 / 20%);
+}
+
+.liveDrawInfo,
+.liveCountdown,
+.nextDrawInfo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.liveDrawInfo span,
+.liveCountdown span,
+.nextDrawInfo span {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.liveDrawInfo strong,
+.nextDrawInfo strong {
+  font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+  white-space: nowrap;
+}
+
+.liveCountdown strong {
+  min-width: 128px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: #07351f;
+  font-size: clamp(1.8rem, 4vw, 3.3rem);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.liveCountdown .liveError {
+  min-width: 0;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.nextDrawInfo strong {
+  padding: 5px 10px;
+  border-radius: 3px;
+  background: #07351f;
+}
+
+.skeleton {
+  display: block;
+  background: rgb(255 255 255 / 18%);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
+.skeletonDraw {
+  width: 68%;
+  height: 12px;
+}
+
+.skeletonBall {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 50%;
+}
+
+.skeletonSum {
+  width: 32px;
+  height: 12px;
+}
+
+.skeletonColor {
+  width: 75px;
+  height: 25px;
+  border-radius: 2px;
+}
+
+.skeletonValue {
+  width: 24px;
+  height: 9px;
+}
+
+.skeletonSummary {
+  width: 39px;
+  height: 18px;
+}
+
+.skeletonCategoryValue {
+  width: 29px;
+  height: 17px;
+}
+
+.skeletonLabel {
+  width: 42px;
+  height: 7px;
+}
+
+@keyframes skeletonPulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
 @media (max-width: 950px) {
   .board {
     grid-template-columns: minmax(0, 1fr);
@@ -436,7 +580,7 @@
 
 @media (max-width: 560px) {
   .tvPage {
-    padding: 0 8px;
+    padding: 0 8px 118px;
   }
 
   .tvHeader {
@@ -490,6 +634,12 @@
     height: clamp(20px, 6vw, 25px);
     flex-basis: clamp(20px, 6vw, 25px);
     font-size: 0.63rem;
+  }
+
+  .balls .skeletonBall {
+    width: clamp(20px, 6vw, 25px);
+    height: clamp(20px, 6vw, 25px);
+    flex-basis: clamp(20px, 6vw, 25px);
   }
 
   .sumCell {
@@ -555,10 +705,62 @@
     min-height: 55px;
   }
 
+  .liveStrip {
+    min-height: 104px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 7px 10px;
+    padding: 8px;
+  }
+
+  .liveBalls {
+    width: 100%;
+    justify-content: center;
+    gap: clamp(3px, 1.2vw, 7px);
+  }
+
+  .liveBall {
+    width: clamp(32px, 9vw, 42px);
+    height: clamp(32px, 9vw, 42px);
+    font-size: clamp(1rem, 5vw, 1.35rem);
+  }
+
+  .liveDrawInfo,
+  .liveCountdown,
+  .nextDrawInfo {
+    flex: 1 1 auto;
+    gap: 2px;
+  }
+
+  .liveDrawInfo span,
+  .liveCountdown span,
+  .nextDrawInfo span {
+    font-size: 0.5rem;
+  }
+
+  .liveDrawInfo strong,
+  .nextDrawInfo strong {
+    font-size: 0.76rem;
+  }
+
+  .liveCountdown strong {
+    min-width: 78px;
+    padding: 1px 5px;
+    font-size: 1.25rem;
+  }
+
+  .nextDrawInfo strong {
+    padding: 3px 6px;
+  }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
   :global(*) {
     scroll-behavior: auto !important;
+  }
+
+  .skeleton {
+    animation: none;
   }
 }
