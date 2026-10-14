@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +18,8 @@ const placeBetSchema = z.object({
   stake: z.union([z.number().positive(), z.string()]),
   idempotencyKey: z.string().optional(),
 });
+
+const completedDrawStatuses = ['RESULT_READY', 'SETTLEMENT_PENDING', 'SETTLED'] as const;
 
 @Controller()
 export class GameController {
@@ -99,6 +102,134 @@ export class GameController {
                 : null,
             }
           : null,
+    };
+  }
+
+  @Get('draws/results')
+  async getDrawResults(@Query('limit') rawLimit?: string) {
+    const parsedLimit = rawLimit === undefined ? 10 : Number(rawLimit);
+    if (
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 1 ||
+      parsedLimit > 50
+    ) {
+      throw new BadRequestException('Limit must be an integer between 1 and 50.');
+    }
+
+    const draws = await this.prisma.draw.findMany({
+      where: {
+        status: { in: [...completedDrawStatuses] },
+        balls: { some: {} },
+      },
+      orderBy: { drawNumber: 'desc' },
+      take: 20,
+      include: { balls: true, statistics: true },
+    });
+    const latestDrawNumber = draws[0]?.drawNumber ?? null;
+
+    const lastAppearances = latestDrawNumber === null
+      ? []
+      : await this.prisma.$queryRaw<
+          { number: number; lastDrawNumber: number }[]
+        >`
+          SELECT ball."number", MAX(draw."drawNumber")::int AS "lastDrawNumber"
+          FROM "DrawBall" AS ball
+          INNER JOIN "Draw" AS draw ON draw."id" = ball."drawId"
+          WHERE draw."status" IN ('RESULT_READY', 'SETTLEMENT_PENDING', 'SETTLED')
+          GROUP BY ball."number"
+        `;
+
+    const latestAppearanceByNumber = new Map(
+      lastAppearances.map(({ number, lastDrawNumber }) => [
+        number,
+        lastDrawNumber,
+      ]),
+    );
+    const lateNumbers = latestDrawNumber === null
+      ? []
+      : Array.from({ length: 49 }, (_, index) => index + 1)
+          .map((number) => {
+            const lastDrawNumber = latestAppearanceByNumber.get(number);
+            return {
+              number,
+              delay: lastDrawNumber === undefined
+                ? null
+                : latestDrawNumber - lastDrawNumber,
+            };
+          })
+          .filter(
+            (item): item is { number: number; delay: number } =>
+              item.delay !== null,
+          )
+          .sort((first, second) => {
+            return second.delay - first.delay || first.number - second.number;
+          })
+          .slice(0, 5);
+
+    const numberCounts = new Map<number, number>();
+    const winningColors: Record<string, number> = {
+      DRAW: 0,
+      RED: 0,
+      BLUE: 0,
+      GREEN: 0,
+      YELLOW: 0,
+    };
+    const sumBands = { LOW: 0, MID: 0, HIGH: 0 };
+
+    for (const draw of draws) {
+      for (const ball of draw.balls) {
+        numberCounts.set(ball.number, (numberCounts.get(ball.number) ?? 0) + 1);
+      }
+
+      const majorityColor = draw.statistics?.majorityColor;
+      const winningColor = majorityColor ?? 'DRAW';
+      if (winningColor in winningColors) winningColors[winningColor] += 1;
+
+      const totalSum =
+        draw.statistics?.totalSum ??
+        draw.balls.reduce((total, ball) => total + ball.number, 0);
+      if (totalSum <= 120) sumBands.LOW += 1;
+      else if (totalSum <= 170) sumBands.MID += 1;
+      else sumBands.HIGH += 1;
+    }
+
+    const hotNumbers = [...numberCounts.entries()]
+      .map(([number, count]) => ({ number, count }))
+      .sort((first, second) => second.count - first.count || first.number - second.number)
+      .slice(0, 5);
+
+    return {
+      results: draws.slice(0, parsedLimit).map((draw) => ({
+        id: draw.id,
+        drawNumber: draw.drawNumber,
+        resultAt: draw.resultAt?.toISOString() ?? null,
+        balls: [...draw.balls]
+          .sort((first, second) => first.orderIndex - second.orderIndex)
+          .map(({ number, color, orderIndex }) => ({
+            number,
+            color,
+            orderIndex,
+          })),
+        totalSum:
+          draw.statistics?.totalSum ??
+          draw.balls.reduce((total, ball) => total + ball.number, 0),
+        winningColor: draw.statistics?.majorityColor ?? 'DRAW',
+      })),
+      statistics: {
+        drawsAnalyzed: draws.length,
+        hotNumbers,
+        lateNumbers,
+        maxDelay:
+          latestDrawNumber === null
+            ? 0
+            : [...latestAppearanceByNumber.values()].reduce(
+                (maximum, lastDrawNumber) =>
+                  Math.max(maximum, latestDrawNumber - lastDrawNumber),
+                0,
+              ),
+        winningColors,
+        sumBands,
+      },
     };
   }
 

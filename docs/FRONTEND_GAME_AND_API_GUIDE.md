@@ -179,6 +179,19 @@ Persisted `Date` values are returned as ISO strings. Do not infer that an empty
 `balls` array means there is no result; use `latestResult.balls` for the result
 currently shown in the frontend.
 
+### `GET /draws/results`
+
+Returns recent completed results and statistics for the Lucky6 TV results
+board. `limit` is optional (default `10`, maximum `50`); aggregate statistics
+use up to the latest 20 completed draws. Each result contains its six balls,
+sum, and winning colour (`RED`, `BLUE`, `GREEN`, or `DRAW` for a tie).
+
+The statistics include the five most frequent numbers, the five most delayed
+numbers, the maximum delay in draw numbers, winning-colour counts, and the
+sum-band counts. Lucky6 sum bands are `LOW` 15–120, `MID` 121–170, and `HIGH`
+171–280. Delay is the difference between the latest completed draw number and
+the number's last completed draw number.
+
 ### `GET /markets`
 
 Returns active markets and their selections. Each selection includes

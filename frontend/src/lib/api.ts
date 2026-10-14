@@ -62,6 +62,27 @@ export interface CurrentDrawResponse {
   } | null;
 }
 
+export interface DrawResult {
+  id: string;
+  drawNumber: number;
+  resultAt: string | null;
+  balls: { number: number; color: string; orderIndex: number }[];
+  totalSum: number;
+  winningColor: string;
+}
+
+export interface DrawResultsResponse {
+  results: DrawResult[];
+  statistics: {
+    drawsAnalyzed: number;
+    hotNumbers: { number: number; count: number }[];
+    lateNumbers: { number: number; delay: number }[];
+    maxDelay: number;
+    winningColors: Record<string, number>;
+    sumBands: { LOW: number; MID: number; HIGH: number };
+  };
+}
+
 export interface MarketResponse {
   id: string;
   type: string;
@@ -80,6 +101,16 @@ export async function getCurrentDraw(
   signal?: AbortSignal,
 ): Promise<CurrentDrawResponse> {
   return fetchJson<CurrentDrawResponse>('/draws/current', { signal });
+}
+
+export async function getDrawResults(
+  limit = 10,
+  signal?: AbortSignal,
+): Promise<DrawResultsResponse> {
+  return fetchJson<DrawResultsResponse>(
+    `/draws/results?limit=${encodeURIComponent(limit)}`,
+    { signal },
+  );
 }
 
 export async function getMarkets(
