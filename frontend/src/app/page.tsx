@@ -48,7 +48,6 @@ export default function HomePage() {
   const stageRef = useRef<HTMLElement>(null);
   const resultKeyRef = useRef<string | null>(null);
   const hasShownResultsRef = useRef(false);
-  const vacuumedDrawRef = useRef<string | null>(null);
   const ballRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [draw, setDraw] = useState<CurrentDrawResponse | null>(null);
   const [shownBalls, setShownBalls] = useState<CurrentDrawResponse['balls']>(
@@ -66,6 +65,12 @@ export default function HomePage() {
     (draw?.balls.length === 6
       ? { id: draw.id, drawNumber: draw.drawNumber, balls: draw.balls }
       : null);
+  const currentDrawBalls =
+    draw?.balls.length === 6
+      ? [...draw.balls].sort(
+          (first, second) => first.orderIndex - second.orderIndex,
+        )
+      : [];
   const orderedResults =
     displayedResult?.balls.length === 6
       ? [...displayedResult.balls].sort(
@@ -73,16 +78,11 @@ export default function HomePage() {
         )
       : [];
   const resultKey =
-    orderedResults.length === 6
-      ? `${displayedResult?.id}:${orderedResults.map((ball) => ball.number).join(',')}`
+    currentDrawBalls.length === 6
+      ? `${draw?.id}:${currentDrawBalls.map((ball) => ball.number).join(',')}`
       : '';
   const countdownTarget = getCountdownTarget(draw);
   const countdown = countdownTarget === null ? null : countdownTarget - now;
-  const vacuumTimeReached =
-    Boolean(draw) &&
-    draw?.status !== 'OPEN' &&
-    countdown !== null &&
-    countdown <= 0;
   const resultStatistics =
     draw?.balls.length === 6
       ? draw.statistics
@@ -147,7 +147,7 @@ export default function HomePage() {
       resultKeyRef.current = resultKey;
       const revealBalls = () => {
         hasShownResultsRef.current = true;
-        setShownBalls(orderedResults);
+        setShownBalls(currentDrawBalls);
         setRevealToken(resultKey);
       };
 
@@ -156,7 +156,6 @@ export default function HomePage() {
         return;
       }
 
-      vacuumedDrawRef.current = draw.id;
       const visibleBalls = ballRefs.current.filter(
         (ball): ball is HTMLDivElement => ball !== null,
       );
@@ -211,49 +210,6 @@ export default function HomePage() {
     {
       scope: stageRef,
       dependencies: [revealToken],
-      revertOnUpdate: true,
-    },
-  );
-
-  useGSAP(
-    () => {
-      if (
-        !draw ||
-        !vacuumTimeReached ||
-        shownBalls.length === 0 ||
-        vacuumedDrawRef.current === draw.id
-      ) {
-        return;
-      }
-
-      vacuumedDrawRef.current = draw.id;
-      const visibleBalls = ballRefs.current.filter(
-        (ball): ball is HTMLDivElement => ball !== null,
-      );
-      if (visibleBalls.length === 0) {
-        setShownBalls([]);
-        return;
-      }
-
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        setShownBalls([]);
-        return;
-      }
-
-      gsap.to(visibleBalls, {
-        scale: 0.08,
-        y: -78,
-        opacity: 0,
-        rotation: 150,
-        duration: 0.34,
-        stagger: 0.16,
-        ease: 'power3.in',
-        onComplete: () => setShownBalls([]),
-      });
-    },
-    {
-      scope: stageRef,
-      dependencies: [draw?.id, vacuumTimeReached, shownBalls.length],
       revertOnUpdate: true,
     },
   );
@@ -328,7 +284,8 @@ export default function HomePage() {
               </p>
               <div className={styles.drawBalls} aria-label="Draw result">
                 {emptySlots.map((slot) => {
-                  const ball = shownBalls[slot];
+                  const ball =
+                    draw?.balls.length === 6 ? shownBalls[slot] : undefined;
                   return (
                     <div
                       className={`${styles.drawBall} ${
