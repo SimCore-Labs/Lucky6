@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ApiError, getCurrentDraw, type CurrentDrawResponse } from '@/lib/api';
@@ -241,6 +242,7 @@ export default function HomePage() {
           <a className={styles.activeNavLink} href="#play">Play</a>
           <a href="#results">Latest result</a>
           <a href="#numbers">Number board</a>
+          <Link href="/tv">TV results</Link>
         </nav>
         <div className={styles.liveIndicator}>
           <span className={styles.liveDot} />
