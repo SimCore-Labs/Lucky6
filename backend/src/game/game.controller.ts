@@ -132,7 +132,7 @@ export class GameController {
       : await this.prisma.$queryRaw<
           { number: number; lastDrawNumber: number }[]
         >`
-          SELECT ball."number", MAX(draw."drawNumber")::int AS "lastDrawNumber"
+          SELECT ball."number", CAST(MAX(draw."drawNumber") AS INTEGER) AS "lastDrawNumber"
           FROM "DrawBall" AS ball
           INNER JOIN "Draw" AS draw ON draw."id" = ball."drawId"
           WHERE draw."status" IN ('RESULT_READY', 'SETTLEMENT_PENDING', 'SETTLED')
