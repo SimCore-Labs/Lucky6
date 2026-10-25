@@ -2,6 +2,20 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from './prisma.service.js';
 import { RedisService } from './redis.service.js';
 import { SettlementEvaluatorService } from './domain/settlement-evaluator.service.js';
+import type { BallColor } from '@lucky-six/contracts';
+
+function calculateSingleSelectionPayout(
+  stake: bigint,
+  lockedOdds: string,
+): bigint {
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(lockedOdds);
+  if (!match) {
+    throw new Error(`Invalid locked decimal odds: ${lockedOdds}`);
+  }
+  const oddsHundredths =
+    BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
+  return (stake * oddsHundredths) / 100n;
+}
 
 @Injectable()
 export class SettlementService implements OnModuleInit {
@@ -80,13 +94,13 @@ export class SettlementService implements OnModuleInit {
     const drawData = {
       balls: draw.balls.map((b) => ({
         number: b.number,
-        color: b.color as any,
+        color: b.color as BallColor,
         orderIndex: b.orderIndex,
       })),
       statistics: {
         totalSum: draw.statistics.totalSum,
         has49: draw.statistics.has49,
-        majorityColor: draw.statistics.majorityColor as any,
+        majorityColor: draw.statistics.majorityColor as BallColor | null,
       },
     };
 
@@ -104,6 +118,7 @@ export class SettlementService implements OnModuleInit {
             },
           },
         },
+        pickSixTicket: true,
         wallet: true,
       },
     });
@@ -126,30 +141,77 @@ export class SettlementService implements OnModuleInit {
           return;
         }
 
-        // Evaluate selections
-        let allSelectionsWon = true;
-        let cumulativeOddsMultiplier = 1.0;
+        let matchedCount: number | null = null;
+        let winningTier: number | null = null;
+        let payoutAmount = 0n;
+        let betWon = false;
 
-        for (const sel of bet.selections) {
-          const isWinningSelection = this.evaluator.evaluateSelection(
+        if (bet.pickSixTicket) {
+          const selectedNumbers: unknown = JSON.parse(
+            bet.pickSixTicket.numbers,
+          );
+          const tierMultipliers: unknown = JSON.parse(
+            bet.pickSixTicket.tierMultipliers,
+          );
+          if (
+            !Array.isArray(selectedNumbers) ||
+            !selectedNumbers.every(
+              (number): number is number => typeof number === 'number',
+            ) ||
+            !tierMultipliers ||
+            typeof tierMultipliers !== 'object'
+          ) {
+            throw new Error(`Pick-six ticket ${bet.pickSixTicket.id} is invalid.`);
+          }
+          matchedCount = this.evaluator.countPickSixMatches(
+            selectedNumbers,
+            drawData,
+          );
+          winningTier = matchedCount >= 3 ? matchedCount : null;
+          const multiplier = winningTier
+            ? (tierMultipliers as Record<string, unknown>)[String(winningTier)]
+            : undefined;
+          if (
+            winningTier &&
+            (typeof multiplier !== 'number' ||
+              !Number.isInteger(multiplier) ||
+              multiplier < 1)
+          ) {
+            throw new Error(
+              `Pick-six ticket ${bet.pickSixTicket.id} has an invalid tier multiplier.`,
+            );
+          }
+          if (winningTier) {
+            payoutAmount = bet.stake * BigInt(Number(multiplier));
+            betWon = true;
+          }
+          await tx.pickSixTicket.update({
+            where: { id: bet.pickSixTicket.id },
+            data: { matchedCount, winningTier },
+          });
+        } else {
+          if (bet.selections.length !== 1) {
+            throw new Error(
+              `Bet ${bet.id} must have exactly one selection or one pick-six ticket.`,
+            );
+          }
+          const [selection] = bet.selections;
+          betWon = this.evaluator.evaluateSelection(
             {
-              marketType: sel.selection.market.type,
-              selectionValue: sel.selection.value,
+              marketType: selection.selection.market.type,
+              selectionValue: selection.selection.value,
             },
             drawData,
           );
-
-          if (isWinningSelection) {
-            cumulativeOddsMultiplier *= Number(sel.lockedOdds);
-          } else {
-            allSelectionsWon = false;
-            break;
+          if (betWon) {
+            payoutAmount = calculateSingleSelectionPayout(
+              bet.stake,
+              selection.lockedOdds.toString(),
+            );
           }
         }
 
-        if (allSelectionsWon && bet.selections.length > 0) {
-          const stakeNum = Number(bet.stake);
-          const payoutAmount = BigInt(Math.floor(stakeNum * cumulativeOddsMultiplier));
+        if (betWon) {
 
           // Debit/Credit Wallet & Ledger Entry
           await tx.wallet.update({
@@ -157,20 +219,19 @@ export class SettlementService implements OnModuleInit {
             data: { balance: { increment: payoutAmount } },
           });
 
-          const ledgerAccount = await tx.ledgerAccount.findUnique({
+          const ledgerAccount = await tx.ledgerAccount.upsert({
             where: { walletId: bet.walletId },
+            update: {},
+            create: { walletId: bet.walletId },
           });
-
-          if (ledgerAccount) {
-            await tx.ledgerEntry.create({
-              data: {
-                accountId: ledgerAccount.id,
-                amount: payoutAmount,
-                type: 'BET_WIN',
-                reference: `SETTLEMENT_BET_${bet.id}`,
-              },
-            });
-          }
+          await tx.ledgerEntry.create({
+            data: {
+              accountId: ledgerAccount.id,
+              amount: payoutAmount,
+              type: 'BET_WIN',
+              reference: `SETTLEMENT_BET_${bet.id}`,
+            },
+          });
 
           // Mark bet WON & record Settlement
           await tx.bet.update({
@@ -188,7 +249,9 @@ export class SettlementService implements OnModuleInit {
 
           settledCount++;
           totalPayoutBigInt += payoutAmount;
-          this.logger.log(`Bet ${bet.id} WON! Payout: ${payoutAmount.toString()} SIM Credits`);
+          this.logger.log(
+            `Bet ${bet.id} WON${winningTier ? ` (${winningTier} matches)` : ''}. Payout: ${payoutAmount.toString()} SIM Credits`,
+          );
         } else {
           // Bet LOST
           await tx.bet.update({

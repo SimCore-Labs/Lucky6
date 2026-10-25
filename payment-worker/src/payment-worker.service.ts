@@ -3,10 +3,13 @@ import { PrismaService } from './prisma.service.js';
 import { RedisService } from './redis.service.js';
 import { SolanaPaymentService } from './domain/solana-payment.service.js';
 
+const PAYMENT_FINALIZATION_GRACE_MS = 2 * 60 * 1000;
+
 @Injectable()
 export class PaymentWorkerService implements OnModuleInit {
   private readonly logger = new Logger(PaymentWorkerService.name);
   private isProcessing = false;
+  private lastReconciledOrderId: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -32,37 +35,100 @@ export class PaymentWorkerService implements OnModuleInit {
     try {
       const now = new Date();
 
-      // 1. Mark expired payment orders
+      // Only unsigned orders expire automatically; a submitted chain transaction
+      // may still be awaiting finalization.
       await this.prisma.paymentOrder.updateMany({
         where: {
           status: 'PENDING',
-          expiresAt: { lt: now },
+          expiresAt: { lt: new Date(now.getTime() - PAYMENT_FINALIZATION_GRACE_MS) },
         },
         data: {
           status: 'EXPIRED',
         },
       });
 
-      // 2. Find pending/confirming payment orders with transactions submitted
-      const pendingOrders = await this.prisma.paymentOrder.findMany({
-        where: {
-          status: { in: ['PENDING', 'SUBMITTED', 'CONFIRMING'] },
-        },
-        include: {
-          transactions: true,
-          wallet: true,
-        },
-      });
+      const loadBatch = (afterId: string | null) =>
+        this.prisma.paymentOrder.findMany({
+          where: {
+            status: { in: ['PENDING', 'SUBMITTED', 'CONFIRMING'] },
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          orderBy: { id: 'asc' },
+          take: 25,
+          include: {
+            transactions: true,
+            wallet: true,
+          },
+        });
+      let pendingOrders = await loadBatch(this.lastReconciledOrderId);
+      if (pendingOrders.length === 0 && this.lastReconciledOrderId !== null) {
+        this.lastReconciledOrderId = null;
+        pendingOrders = await loadBatch(null);
+      }
+      if (pendingOrders.length > 0) {
+        this.lastReconciledOrderId =
+          pendingOrders[pendingOrders.length - 1].id;
+      }
 
       for (const order of pendingOrders) {
         if (order.transactions.length > 0) {
           for (const tx of order.transactions) {
             await this.processPaymentVerification(order.id, tx.signature);
           }
+        } else if (order.status === 'PENDING') {
+          const signatures = await this.solanaPayment.getRecentSignatures(
+            order.reference,
+          );
+          for (const signature of signatures.slice(0, 3)) {
+            if (await this.recordDiscoveredSignature(order.id, signature)) {
+              await this.processPaymentVerification(order.id, signature);
+              break;
+            }
+          }
         }
       }
     } finally {
       this.isProcessing = false;
+    }
+  }
+
+  private async recordDiscoveredSignature(
+    orderId: string,
+    signature: string,
+  ): Promise<boolean> {
+    const existing = await this.prisma.paymentTransaction.findUnique({
+      where: { signature },
+    });
+    if (existing) return existing.orderId === orderId;
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const order = await tx.paymentOrder.findUnique({
+          where: { id: orderId },
+        });
+        if (!order || order.status !== 'PENDING') return false;
+
+        await tx.paymentOrder.update({
+          where: { id: orderId },
+          data: { status: 'SUBMITTED' },
+        });
+        await tx.paymentTransaction.create({
+          data: { orderId, signature, lamports: 0n },
+        });
+        return true;
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        const duplicate = await this.prisma.paymentTransaction.findUnique({
+          where: { signature },
+        });
+        return duplicate?.orderId === orderId;
+      }
+      throw error;
     }
   }
 
@@ -72,120 +138,135 @@ export class PaymentWorkerService implements OnModuleInit {
   async processPaymentVerification(
     orderId: string,
     signature: string,
-    actualLamportsOverride?: bigint,
   ): Promise<boolean> {
-    return await this.prisma.$transaction(async (tx) => {
-      const order = await tx.paymentOrder.findUnique({
-        where: { id: orderId },
-        include: { wallet: true, transactions: true },
-      });
-
-      if (!order) {
-        this.logger.warn(`PaymentOrder ${orderId} not found.`);
-        return false;
-      }
-
-      // Check if order is already credited or expired/failed
-      if (order.status === 'CREDITED') {
-        this.logger.log(`PaymentOrder ${orderId} is already CREDITED. Skipping.`);
-        return true;
-      }
-
-      if (order.status === 'EXPIRED') {
-        this.logger.warn(`PaymentOrder ${orderId} is EXPIRED.`);
-        return false;
-      }
-
-      // Check if signature has already been processed for another order
-      const existingTx = await tx.paymentTransaction.findFirst({
-        where: { signature },
-      });
-
-      if (existingTx && existingTx.orderId !== orderId) {
-        this.logger.warn(`Transaction signature ${signature} already used for order ${existingTx.orderId}!`);
-        await tx.paymentOrder.update({
-          where: { id: orderId },
-          data: { status: 'FAILED' },
-        });
-        return false;
-      }
-
-      // Verify transaction on-chain / via Solana Payment Service
-      const treasuryAddress = process.env.TREASURY_WALLET_ADDRESS ?? '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R';
-      const verifyRes = await this.solanaPayment.verifyTransactionSignature(
-        signature,
-        treasuryAddress,
-        order.expectedLamports,
-      );
-
-      // Record transaction record if not present
-      if (!existingTx) {
-        await tx.paymentTransaction.create({
-          data: {
-            orderId: order.id,
-            signature,
-            lamports: verifyRes.actualLamports,
-          },
-        });
-      }
-
-      if (verifyRes.status === 'VERIFIED' || verifyRes.status === 'OVERPAID') {
-        // Credit User Ledger Account & Wallet Balance
-        await tx.wallet.update({
-          where: { id: order.walletId },
-          data: { balance: { increment: order.creditsToIssue } },
-        });
-
-        let ledgerAccount = await tx.ledgerAccount.findUnique({
-          where: { walletId: order.walletId },
-        });
-
-        if (!ledgerAccount) {
-          ledgerAccount = await tx.ledgerAccount.create({
-            data: { walletId: order.walletId },
-          });
-        }
-
-        await tx.ledgerEntry.create({
-          data: {
-            accountId: ledgerAccount.id,
-            amount: order.creditsToIssue,
-            type: 'CREDIT_PURCHASE',
-            reference: `PAYMENT_ORDER_${order.id}`,
-          },
-        });
-
-        await tx.paymentOrder.update({
-          where: { id: order.id },
-          data: { status: 'CREDITED' },
-        });
-
-        this.logger.log(`PaymentOrder ${order.id} verified & CREDITED ${order.creditsToIssue.toString()} SIM Credits!`);
-
-        await this.redis.publish('lucky-six:events', {
-          event: 'wallet.updated',
-          payload: {
-            walletId: order.walletId,
-            creditsAdded: order.creditsToIssue.toString(),
-          },
-        });
-
-        return true;
-      } else if (verifyRes.status === 'UNDERPAID') {
-        await tx.paymentOrder.update({
-          where: { id: order.id },
-          data: { status: 'UNDERPAID' },
-        });
-        this.logger.warn(`PaymentOrder ${order.id} is UNDERPAID.`);
-        return false;
-      } else {
-        await tx.paymentOrder.update({
-          where: { id: order.id },
-          data: { status: 'FAILED' },
-        });
-        this.logger.warn(`PaymentOrder ${order.id} verification FAILED.`);
-        return false;
-      }
+    const order = await this.prisma.paymentOrder.findUnique({
+      where: { id: orderId },
+      include: { wallet: true },
     });
+    if (!order) {
+      this.logger.warn(`PaymentOrder ${orderId} not found.`);
+      return false;
+    }
+    if (order.status === 'CREDITED') return true;
+    if (!['SUBMITTED', 'CONFIRMING'].includes(order.status)) return false;
+
+    const transaction = await this.prisma.paymentTransaction.findUnique({
+      where: { signature },
+    });
+    if (!transaction || transaction.orderId !== order.id) {
+      this.logger.error(
+        `Payment transaction ${signature} is not linked to order ${order.id}.`,
+      );
+      return false;
+    }
+
+    const treasuryAddress = process.env.TREASURY_WALLET_ADDRESS;
+    if (!treasuryAddress) {
+      throw new Error('TREASURY_WALLET_ADDRESS is not configured.');
+    }
+    const verifyRes = await this.solanaPayment.verifyTransactionSignature(
+      signature,
+      treasuryAddress,
+      order.expectedLamports,
+      order.wallet.address,
+      order.reference,
+      order.createdAt,
+      order.expiresAt,
+    );
+
+    if (verifyRes.status === 'PENDING') {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.paymentTransaction.updateMany({
+          where: { id: transaction.id, orderId: order.id },
+          data: { lamports: 0n },
+        });
+        await tx.paymentOrder.updateMany({
+          where: { id: order.id, status: 'SUBMITTED' },
+          data: { status: 'CONFIRMING' },
+        });
+      });
+      return false;
+    }
+
+    const credited = await this.prisma.$transaction(async (tx) => {
+      const currentOrder = await tx.paymentOrder.findUnique({
+        where: { id: order.id },
+      });
+      if (!currentOrder) return false;
+      if (currentOrder.status === 'CREDITED') return true;
+      if (!['SUBMITTED', 'CONFIRMING'].includes(currentOrder.status)) {
+        return false;
+      }
+
+      await tx.paymentTransaction.update({
+        where: { id: transaction.id },
+        data: { lamports: verifyRes.actualLamports },
+      });
+
+      if (verifyRes.status !== 'VERIFIED') {
+        await tx.paymentOrder.update({
+          where: { id: currentOrder.id },
+          data: {
+            status:
+              verifyRes.status === 'UNDERPAID'
+                ? 'UNDERPAID'
+                : verifyRes.status === 'OVERPAID'
+                  ? 'OVERPAID'
+                  : verifyRes.status === 'EXPIRED'
+                    ? 'EXPIRED'
+                    : verifyRes.status === 'REQUIRES_REVIEW'
+                      ? 'REQUIRES_REVIEW'
+                      : 'FAILED',
+          },
+        });
+        return false;
+      }
+
+      const claimed = await tx.paymentOrder.updateMany({
+        where: {
+          id: currentOrder.id,
+          status: { in: ['SUBMITTED', 'CONFIRMING'] },
+        },
+        data: { status: 'CREDITED' },
+      });
+      if (claimed.count !== 1) return false;
+
+      await tx.wallet.update({
+        where: { id: currentOrder.walletId },
+        data: { balance: { increment: currentOrder.creditsToIssue } },
+      });
+      const ledgerAccount = await tx.ledgerAccount.upsert({
+        where: { walletId: currentOrder.walletId },
+        update: {},
+        create: { walletId: currentOrder.walletId },
+      });
+      await tx.ledgerEntry.create({
+        data: {
+          accountId: ledgerAccount.id,
+          amount: currentOrder.creditsToIssue,
+          type: 'CREDIT_PURCHASE',
+          reference: `PAYMENT_ORDER_${currentOrder.id}`,
+        },
+      });
+      return true;
+    });
+
+    if (credited) {
+      await this.redis.publish('lucky-six:events', {
+        event: 'wallet.updated',
+        payload: {
+          walletId: order.walletId,
+          creditsAdded: order.creditsToIssue.toString(),
+        },
+      });
+      this.logger.log(
+        `PaymentOrder ${order.id} verified & credited ${order.creditsToIssue.toString()} credits.`,
+      );
+    } else {
+      this.logger.warn(
+        `PaymentOrder ${order.id} verification result: ${verifyRes.status}.`,
+      );
+    }
+    return credited;
   }
 }

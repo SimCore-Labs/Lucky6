@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { PricingModule } from './pricing/pricing.module.js';
 import { GameModule } from './game/game.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
+import { PaymentModule } from './payments/payment.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { RealtimeModule } from './realtime/realtime.module.js';
     PricingModule,
     GameModule,
     RealtimeModule,
+    PaymentModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

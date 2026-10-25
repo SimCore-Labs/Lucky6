@@ -1,6 +1,11 @@
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import 'dotenv/config';
 import { createTursoAdapter } from '../src/prisma/turso-adapter.js';
+import {
+  calculateDecimalOdds,
+  calculateMarketProbabilities,
+  probabilityForSelection,
+} from '../src/pricing/market-pricing.js';
 
 const prisma = new PrismaClient({
   adapter: createTursoAdapter(
@@ -19,6 +24,38 @@ async function upsertOddsForSelection(selectionId: string, oddsValue: number) {
       data: { selectionId, oddsValue, version: 1 },
     });
   }
+}
+
+async function seedMarket(
+  type: string,
+  title: string,
+  description: string,
+  selections: { value: string; label: string }[],
+) {
+  const market = await prisma.market.upsert({
+    where: { type },
+    update: { title, description, active: true },
+    create: { type, title, description, active: true },
+  });
+  const probabilities = calculateMarketProbabilities();
+
+  for (const item of selections) {
+    const selection = await prisma.marketSelection.upsert({
+      where: { marketId_value: { marketId: market.id, value: item.value } },
+      update: { label: item.label },
+      create: { marketId: market.id, value: item.value, label: item.label },
+    });
+    const probability = probabilityForSelection(type, item.value, probabilities);
+    const odds = probability
+      ? calculateDecimalOdds(probability, 0.08)
+      : null;
+    if (odds === null) {
+      throw new Error(`No valid price for seeded selection ${type}:${item.value}.`);
+    }
+    await upsertOddsForSelection(selection.id, odds);
+  }
+
+  return market;
 }
 
 async function main() {
@@ -93,9 +130,95 @@ async function main() {
     console.log(`  Selection upserted: ${opt.label}`);
   }
 
+  await seedMarket(
+    'INDIVIDUAL_NUMBER',
+    'Number appears',
+    'Predict one number that appears in the six-ball draw.',
+    Array.from({ length: 49 }, (_, index) => {
+      const number = index + 1;
+      return { value: String(number), label: `Number ${number}` };
+    }),
+  );
+  await seedMarket(
+    'BLACK_JACKPOT',
+    'Black jackpot',
+    'Predict whether ball 49 appears in the draw.',
+    [
+      { value: 'YES', label: '49 appears' },
+      { value: 'NO', label: '49 does not appear' },
+    ],
+  );
+  await seedMarket(
+    'COLOR_MAJORITY',
+    'Majority color',
+    'Predict which normal color appears most often; tied counts are no majority.',
+    [
+      { value: 'RED', label: 'Red' },
+      { value: 'BLUE', label: 'Blue' },
+      { value: 'GREEN', label: 'Green' },
+      { value: 'NO_MAJORITY', label: 'No majority' },
+    ],
+  );
+  await seedMarket(
+    'SUM_HIGH_MID_LOW',
+    'Total sum band',
+    'Predict the range containing the sum of all six numbers.',
+    [
+      { value: 'LOW', label: 'Low (21–120)' },
+      { value: 'MID', label: 'Mid (121–170)' },
+      { value: 'HIGH', label: 'High (171–279)' },
+    ],
+  );
+  await seedMarket(
+    'SUM_ODD_EVEN',
+    'Total sum parity',
+    'Predict whether the total of all six numbers is odd or even.',
+    [
+      { value: 'ODD', label: 'Odd' },
+      { value: 'EVEN', label: 'Even' },
+    ],
+  );
+  await seedMarket(
+    'SUM_OVER_UNDER',
+    'Sum Over/Under 122.5',
+    'Predict whether the total of all six drawn numbers is over or under 122.5.',
+    [
+      { value: 'OVER', label: 'Over 122.5' },
+      { value: 'UNDER', label: 'Under 122.5' },
+    ],
+  );
+  await seedMarket(
+    'COLOR_COUNT',
+    'Exact color count',
+    'Predict the exact count of a selected color among the six drawn balls.',
+    [
+      ...(['RED', 'BLUE', 'GREEN'] as const).flatMap((color) =>
+        Array.from({ length: 7 }, (_, count) => ({
+          value: `${color}:${count}`,
+          label: `Exactly ${count} ${color}`,
+        })),
+      ),
+      { value: 'BLACK:1', label: 'Exactly 1 BLACK' },
+    ],
+  );
+  await prisma.market.upsert({
+    where: { type: 'PICK_SIX' },
+    update: {
+      title: 'Pick six numbers',
+      description: 'Pick six numbers; win a tier by matching at least three.',
+      active: true,
+    },
+    create: {
+      type: 'PICK_SIX',
+      title: 'Pick six numbers',
+      description: 'Pick six numbers; win a tier by matching at least three.',
+      active: true,
+    },
+  });
+
   console.log('\n✅ Seeding completed successfully!');
-  console.log('   Markets seeded: 2 (First Ball Color, Sum Over/Under)');
-  console.log('   Selections seeded: 6 (4 colors + 2 sum options)');
+  console.log('   Markets seeded: 9');
+  console.log('   Added number, jackpot, majority, sum, color-count, and pick-six markets.');
 }
 
 main()

@@ -18,11 +18,16 @@ export interface UiState {
   stakeInput: string;
   soundEnabled: boolean;
   walletModalOpen: boolean;
+  walletProfile: { walletId: string; address: string; balance: string } | null;
+  toast: { message: string; tone: 'success' | 'error' | 'info'; id: number } | null;
   selectBet: (bet: BetSelectionState) => void;
   clearBet: () => void;
   setStakeInput: (stake: string) => void;
   toggleSound: () => void;
   setWalletModalOpen: (open: boolean) => void;
+  setWalletProfile: (profile: UiState['walletProfile']) => void;
+  showToast: (message: string, tone?: 'success' | 'error' | 'info') => void;
+  clearToast: () => void;
 }
 
 export type UiStoreApi = ReturnType<typeof createUiStore>;
@@ -33,11 +38,17 @@ export const createUiStore = () =>
     stakeInput: '10',
     soundEnabled: true,
     walletModalOpen: false,
+    walletProfile: null,
+    toast: null,
     selectBet: (bet) => set({ selectedBet: bet }),
     clearBet: () => set({ selectedBet: null }),
     setStakeInput: (stake) => set({ stakeInput: stake }),
     toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
     setWalletModalOpen: (open) => set({ walletModalOpen: open }),
+    setWalletProfile: (walletProfile) => set({ walletProfile }),
+    showToast: (message, tone = 'info') =>
+      set({ toast: { message, tone, id: Date.now() } }),
+    clearToast: () => set({ toast: null }),
   }));
 
 const UiStoreContext = createContext<UiStoreApi | null>(null);

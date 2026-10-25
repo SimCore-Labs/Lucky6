@@ -1,18 +1,24 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
+  ForbiddenException,
   Get,
   Post,
-  Body,
-  BadRequestException,
-  UnauthorizedException,
+  Req,
   Res,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { z } from 'zod';
-import crypto from 'node:crypto';
-import type { FastifyReply } from 'fastify';
-import nacl from 'tweetnacl';
+import { ConfigService } from '@nestjs/config';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import { createHash, randomBytes } from 'node:crypto';
 import bs58 from 'bs58';
+import nacl from 'tweetnacl';
+import { z } from 'zod';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { SessionGuard } from './session.guard.js';
+import type { AuthenticatedRequest } from './session.guard.js';
 
 const authNonceSchema = z.object({
   address: z.string().min(32).max(44),
@@ -20,159 +26,259 @@ const authNonceSchema = z.object({
 
 const authVerifySchema = z.object({
   address: z.string().min(32).max(44),
-  signature: z.string().min(1),
-  nonce: z.string().min(10),
+  signature: z.string().min(1).max(256),
+  signatureEncoding: z.enum(['base58', 'base64']).default('base64'),
+  nonce: z.string().regex(/^[a-f0-9]{32}$/),
 });
+
+function isSolanaAddress(address: string): boolean {
+  try {
+    return bs58.decode(address).length === 32;
+  } catch {
+    return false;
+  }
+}
+
+function challengeMessage(challenge: {
+  address: string;
+  domain: string;
+  nonce: string;
+  issuedAt: Date;
+  expiresAt: Date;
+}): string {
+  return [
+    'Lucky6 wallet sign-in',
+    `Domain: ${challenge.domain}`,
+    `Wallet: ${challenge.address}`,
+    `Nonce: ${challenge.nonce}`,
+    `Issued At: ${challenge.issuedAt.toISOString()}`,
+    `Expiration Time: ${challenge.expiresAt.toISOString()}`,
+  ].join('\n');
+}
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post('nonce')
-  async getNonce(@Body() body: unknown) {
+  async getNonce(
+    @Req() request: FastifyRequest,
+    @Body() body: unknown,
+  ) {
     const parse = authNonceSchema.safeParse(body);
-    if (!parse.success) {
+    if (!parse.success || !isSolanaAddress(parse.data.address)) {
       throw new BadRequestException('Invalid wallet address.');
     }
-    const { address } = parse.data;
-    const nonce = crypto.randomBytes(16).toString('hex');
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min expiry
 
-    await this.prisma.authChallenge.create({
+    const allowedOrigins = new Set(
+      (this.config.get<string>('CORS_ORIGIN') ?? 'http://localhost:3000')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    );
+    const requestOrigin = request.headers.origin;
+    if (
+      typeof requestOrigin === 'string' &&
+      !allowedOrigins.has(requestOrigin)
+    ) {
+      throw new ForbiddenException('Request origin is not allowed.');
+    }
+
+    const configuredDomain = this.config.get<string>('AUTH_DOMAIN');
+    const domain =
+      typeof requestOrigin === 'string'
+        ? new URL(requestOrigin).host
+        : configuredDomain ?? 'Lucky6';
+    const address = parse.data.address;
+    const nonce = randomBytes(16).toString('hex');
+    const issuedAt = new Date();
+    const expiresAt = new Date(issuedAt.getTime() + 5 * 60 * 1000);
+
+    const challenge = await this.prisma.authChallenge.create({
       data: {
         nonce,
         address,
-        domain: 'lucky-six',
+        domain,
         purpose: 'Authentication',
+        issuedAt,
         expiresAt,
       },
     });
 
     return {
       nonce,
-      message: `Sign this message to authenticate with Lucky Six: ${nonce}`,
+      message: challengeMessage(challenge),
       expiresAt: expiresAt.toISOString(),
     };
   }
 
   @Post('verify')
   async verify(
-    @Body() body: unknown,
+    @Req() request: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const parse = authVerifySchema.safeParse(body);
-    if (!parse.success) {
+    const parse = authVerifySchema.safeParse(request.body);
+    if (
+      !parse.success ||
+      !isSolanaAddress(parse.data.address)
+    ) {
       throw new BadRequestException('Invalid authentication payload.');
     }
-    const { address, signature, nonce } = parse.data;
 
+    const { address, nonce, signature, signatureEncoding } = parse.data;
     const challenge = await this.prisma.authChallenge.findUnique({
       where: { nonce },
     });
+    const now = new Date();
 
     if (
       !challenge ||
       challenge.address !== address ||
+      challenge.purpose !== 'Authentication' ||
       challenge.usedAt !== null ||
-      challenge.expiresAt < new Date()
+      challenge.expiresAt <= now
     ) {
-      throw new UnauthorizedException('Invalid or expired authentication challenge.');
+      throw new UnauthorizedException(
+        'Invalid or expired authentication challenge.',
+      );
     }
 
-    // Mark nonce used
-    await this.prisma.authChallenge.update({
-      where: { nonce },
-      data: { usedAt: new Date() },
-    });
+    const allowedOrigins = new Set(
+      (this.config.get<string>('CORS_ORIGIN') ?? 'http://localhost:3000')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    );
+    const requestOrigin = request.headers.origin;
+    if (
+      typeof requestOrigin === 'string' &&
+      (!allowedOrigins.has(requestOrigin) ||
+        new URL(requestOrigin).host !== challenge.domain)
+    ) {
+      throw new ForbiddenException('Request origin is not allowed.');
+    }
 
-    const expectedMessage = `Sign this message to authenticate with Lucky Six: ${nonce}`;
-    let isSigValid = false;
-
-    if (signature.startsWith('TEST_SIGNATURE_')) {
-      isSigValid = true;
-    } else {
+    const publicKey = bs58.decode(address);
+    let signatureBytes: Uint8Array;
     try {
-        const pubKeyBytes = bs58.decode(address);
-        const msgBytes = new TextEncoder().encode(expectedMessage);
-        let sigBytes: Uint8Array;
-        if (/^[0-9a-fA-F]+$/.test(signature)) {
-          sigBytes = Buffer.from(signature, 'hex');
-        } else if (signature.includes('/') || signature.includes('+') || signature.endsWith('=')) {
-          sigBytes = Buffer.from(signature, 'base64');
-        } else {
-          // Default: treat as base58 (Phantom/Solflare return base58-encoded signatures)
-          sigBytes = bs58.decode(signature);
-        }
-        isSigValid = nacl.sign.detached.verify(msgBytes, sigBytes, pubKeyBytes);
-      } catch (err) {
-        isSigValid = false;
-      }
+      signatureBytes =
+        signatureEncoding === 'base58'
+          ? bs58.decode(signature)
+          : Buffer.from(signature, 'base64');
+    } catch {
+      throw new UnauthorizedException('Invalid wallet signature.');
+    }
+    if (
+      publicKey.length !== 32 ||
+      signatureBytes.length !== 64 ||
+      (signatureEncoding === 'base64' &&
+        Buffer.from(signatureBytes).toString('base64') !== signature)
+    ) {
+      throw new UnauthorizedException('Invalid wallet signature.');
     }
 
-    if (!isSigValid) {
+    const validSignature = nacl.sign.detached.verify(
+      new TextEncoder().encode(challengeMessage(challenge)),
+      signatureBytes,
+      publicKey,
+    );
+    if (!validSignature) {
       throw new UnauthorizedException('Invalid wallet ed25519 signature.');
     }
 
-    // Find or create user & wallet
-    let wallet = await this.prisma.wallet.findUnique({
-      where: { address },
+    const consumed = await this.prisma.authChallenge.updateMany({
+      where: {
+        nonce,
+        address,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: { usedAt: now },
     });
-
-    if (!wallet) {
-      const user = await this.prisma.user.create({ data: {} });
-      wallet = await this.prisma.wallet.create({
-        data: {
-          address,
-          userId: user.id,
-          balance: 1000n, // 1000 SIM credits bonus on first login
-          ledger: {
-            create: {
-              entries: {
-                create: {
-                  amount: 1000n,
-                  type: 'BONUS_CREDIT',
-                  reference: 'WELCOME_BONUS',
-                },
-              },
-            },
-          },
-        },
-      });
+    if (consumed.count !== 1) {
+      throw new UnauthorizedException(
+        'Authentication challenge has already been used.',
+      );
     }
 
-    // Create wallet session token
-    const tokenHash = crypto.createHash('sha256').update(nonce + address).digest('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const wallet = await this.prisma.wallet.upsert({
+      where: { address },
+      update: {},
+      create: {
+        address,
+        user: { create: {} },
+      },
+    });
+
+    const sessionToken = randomBytes(32).toString('hex');
+    const sessionTokenHash = createHash('sha256')
+      .update(sessionToken)
+      .digest('hex');
+    const sessionExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await this.prisma.walletSession.create({
       data: {
         walletId: wallet.id,
-        tokenHash,
-        expiresAt,
+        tokenHash: sessionTokenHash,
+        expiresAt: sessionExpiresAt,
       },
     });
 
-    const replyWithCookie = reply as unknown as {
-      setCookie?: (name: string, val: string, opts: unknown) => void;
-    };
-
-    if (typeof replyWithCookie.setCookie === 'function') {
-      replyWithCookie.setCookie('session', tokenHash, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        expires: expiresAt,
-      });
-    } else {
-      reply.header('Set-Cookie', `session=${tokenHash}; Path=/; HttpOnly; SameSite=Lax; Expires=${expiresAt.toUTCString()}`);
-    }
+    const production = this.config.get<string>('NODE_ENV') === 'production';
+    const cookieOptions = [
+      `session=${sessionToken}`,
+      'Path=/',
+      'HttpOnly',
+      production ? 'SameSite=None' : 'SameSite=Lax',
+      `Max-Age=${24 * 60 * 60}`,
+      ...(production ? ['Secure'] : []),
+    ];
+    reply.header('Set-Cookie', cookieOptions.join('; '));
 
     return {
       authenticated: true,
       address,
       walletId: wallet.id,
       balance: wallet.balance.toString(),
+      expiresAt: sessionExpiresAt.toISOString(),
     };
+  }
+
+  @Get('me')
+  @UseGuards(SessionGuard)
+  async getSession(@Req() request: AuthenticatedRequest) {
+    return {
+      authenticated: true,
+      walletId: request.authenticatedWallet.id,
+      address: request.authenticatedWallet.address,
+      balance: request.authenticatedWallet.balance.toString(),
+    };
+  }
+
+  @Post('logout')
+  @UseGuards(SessionGuard)
+  async logout(
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    await this.prisma.walletSession.deleteMany({
+      where: { tokenHash: request.sessionTokenHash },
+    });
+    const secure = this.config.get<string>('NODE_ENV') === 'production';
+    reply.header(
+      'Set-Cookie',
+      [
+        'session=',
+        'Path=/',
+        'HttpOnly',
+        secure ? 'SameSite=None' : 'SameSite=Lax',
+        'Max-Age=0',
+        ...(secure ? ['Secure'] : []),
+      ].join('; '),
+    );
+    return { authenticated: false };
   }
 }

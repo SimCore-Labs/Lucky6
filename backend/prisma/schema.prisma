@@ -76,6 +76,8 @@ model WalletSession {
   tokenHash String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([walletId, expiresAt])
 }
 
 model AuthChallenge {
@@ -200,10 +202,24 @@ model Bet {
   createdAt      DateTime       @default(now())
   selections     BetSelection[]
   settlement     Settlement?
+  pickSixTicket  PickSixTicket?
 
   @@unique([walletId, idempotencyKey])
   @@index([drawId, status])
   @@index([walletId, createdAt])
+}
+
+model PickSixTicket {
+  id                    String   @id @default(uuid())
+  betId                 String   @unique
+  bet                   Bet      @relation(fields: [betId], references: [id])
+  numbers               String
+  tierMultipliers       String
+  scheduleIncludes49    Boolean
+  scheduleVersion       Int
+  matchedCount          Int?
+  winningTier           Int?
+  createdAt             DateTime @default(now())
 }
 
 model BetSelection {
@@ -230,6 +246,7 @@ model PaymentOrder {
   id               String               @id @default(uuid())
   reference        String               @unique
   walletId         String
+  idempotencyKey   String?
   wallet           Wallet               @relation(fields: [walletId], references: [id])
   expectedLamports BigInt
   creditsToIssue   BigInt
@@ -237,6 +254,10 @@ model PaymentOrder {
   createdAt        DateTime             @default(now())
   expiresAt        DateTime
   transactions     PaymentTransaction[]
+
+  @@index([walletId, createdAt])
+  @@index([status, expiresAt])
+  @@unique([walletId, idempotencyKey])
 }
 
 model PaymentTransaction {
