@@ -79,7 +79,6 @@ describe('DrawSchedulerService', () => {
     });
     const transaction = vi.fn(async (callback) =>
       callback({
-        $queryRaw: vi.fn(),
         draw: {
           findFirst: vi
             .fn()
@@ -121,11 +120,9 @@ describe('DrawSchedulerService', () => {
       statistics: null,
     };
     const findFirst = vi.fn().mockResolvedValueOnce(null);
-    const lock = vi.fn();
     const create = vi.fn().mockResolvedValue(draw);
     const transaction = vi.fn(async (callback) =>
       callback({
-        $queryRaw: lock,
         draw: {
           findFirst: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(null),
           create,
@@ -146,7 +143,6 @@ describe('DrawSchedulerService', () => {
       data: expect.objectContaining({ drawNumber: 1 }),
       include: { balls: true, statistics: true },
     });
-    expect(lock.mock.calls[0][0].join('')).toContain('::text AS lock_acquired');
     expect(publish).toHaveBeenCalledWith(
       'lucky-six:events',
       expect.objectContaining({ event: 'draw.created' }),
@@ -169,7 +165,6 @@ describe('DrawSchedulerService', () => {
     const findUnique = vi.fn().mockResolvedValue({ ...draw });
     const transaction = vi.fn(async (callback) =>
       callback({
-        $queryRaw: vi.fn(),
         draw: { findUnique, update },
         drawBall: { createMany },
         drawStatistic: { create: createStatistic },

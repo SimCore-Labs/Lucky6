@@ -9,6 +9,6 @@ persists six generated balls and their statistics before publishing the
 completed result. If no unfinished draw exists, the engine creates the next
 draw (starting at 1 when draw history is empty).
 
-The engine uses PostgreSQL advisory transaction locks for draw creation and
-result generation. The health endpoint is available at
+The engine uses atomic database transactions and unique constraints to guard
+draw creation and result generation across instances. The health endpoint is available at
 `http://127.0.0.1:4100/health/live`.

@@ -1,5 +1,5 @@
-import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
+import { createTursoAdapter } from '../dist/prisma/turso-adapter.js';
 
 if (!process.argv.includes('--confirm-reset-draw-data')) {
   throw new Error('Pass --confirm-reset-draw-data to delete draws and their bets.');
@@ -9,13 +9,11 @@ if (!process.argv.includes('--services-stopped')) {
   throw new Error('Stop all Lucky Six backend services before resetting draw data.');
 }
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error('DATABASE_URL must be configured before resetting draw data.');
-}
-
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
+  adapter: createTursoAdapter(
+    process.env.DATABASE_URL,
+    process.env.TURSO_AUTH_TOKEN,
+  ),
 });
 
 try {

@@ -26,20 +26,14 @@ ssh -i C:\path\to\wesheild.pem ubuntu@16.16.90.151
 ```
 *Note: Ensure your `.pem` file permissions are restricted, otherwise SSH will reject it.*
 
-## 3. GitHub Actions Continuous Deployment (CI/CD)
+## 3. Deployment workflow status
 
-`.github/workflows/deploy.yml` deploys backend changes when `engine/**`,
-`backend/**`, or `packages/contracts/**` change on `main`. It does not trigger
-for frontend-only changes. Before pulling or building, the workflow stops all
-four PM2 backend processes. It installs the backend workspaces, builds the
-contracts and workers, applies pending Prisma migrations, then restarts and
-health-checks the API and draw engine. Keep the Next.js frontend on Vercel.
-
-**Required GitHub Secrets:**
-Go to your GitHub repository -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**.
-Add the following:
-1. `EC2_HOST`: `16.16.90.151`
-2. `EC2_SSH_KEY`: The **entire contents** of your `wesheild.pem` file (including `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----`).
+There is no tracked `.github/workflows/deploy.yml` in this repository, so the
+GitHub Actions deployment described in earlier handoff notes is not available
+from this checkout. The documented deployment target is EC2 with PM2 (section
+4). A workflow must be added and its credentials configured before automated
+GitHub deployment can be used. Do not assume it applies database migrations:
+Turso schema SQL must be applied separately with the authenticated Turso CLI.
 
 ## 4. EC2 Installation and PM2 Process Management
 
@@ -55,7 +49,7 @@ npm run build --workspace=settlement
 npm run build --workspace=payment-worker
 ```
 
-The active deployment checkout is `~/Lucky6-deploy`; it was created to preserve the pre-existing `~/Lucky6` checkout and its local lockfile change. These commands do not build or run the frontend. Configure `backend/.env` with production `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). For local frontend development against the deployed API, add `http://localhost:3000` as a comma-separated second origin. The PM2 ecosystem loads that file for each backend process; restart `lucky6-backend` after changing it.
+The active deployment checkout is `~/Lucky6-deploy`; it was created to preserve the pre-existing `~/Lucky6` checkout and its local lockfile change. These commands do not build or run the frontend. Configure `backend/.env` with the production Turso `DATABASE_URL` (`libsql://...`), `TURSO_AUTH_TOKEN`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). For local frontend development against the deployed API, add `http://localhost:3000` as a comma-separated second origin. The PM2 ecosystem loads that file for each backend process; restart all four services after changing the database credentials.
 
 Start the API and backend workers with:
 
@@ -71,7 +65,7 @@ To view their live logs:
 pm2 logs lucky6-backend lucky6-engine lucky6-settlement lucky6-payment-worker
 ```
 
-**Database safety:** Do not use `npm run start:prod --workspace=backend` on production; that script runs `prisma db push --accept-data-loss` and seeds the database on every start. Review and apply a deliberate production database migration separately before starting services. The payment worker uses the configured Solana RPC and treasury public address; do not put wallet signing secrets in this environment or in the API/frontend.
+**Database safety:** Generate and review Prisma migrations against the local SQLite database, then apply the migration SQL with the authenticated Turso CLI before starting services. Prisma's normal remote PostgreSQL migration flow is not used. `start:prod` does not push a schema or seed records; run the explicit seed command only when needed. Keep the historical PostgreSQL migrations untouched under `backend/prisma/migrations`. The payment worker uses the configured Solana RPC and treasury public address; do not put wallet signing secrets in this environment or in the API/frontend.
 
 For the explicitly approved one-time pre-launch reset, first stop all services
 with `pm2 stop lucky6-backend lucky6-engine lucky6-settlement lucky6-payment-worker`.

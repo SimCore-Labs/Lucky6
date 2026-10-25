@@ -17,7 +17,7 @@ backend processes:
 | `payment-worker` | Polls stored payment orders, verifies submitted Solana transactions, and credits SIM | Internal worker on port 4300 |
 | `packages/contracts` | Shared TypeScript names and DTO interfaces | Build-time shared package |
 
-PostgreSQL is authoritative for draws, wallets, bets, odds, payment records, and
+Turso (SQLite/libSQL) is authoritative for draws, wallets, bets, odds, payment records, and
 ledger entries. Redis Pub/Sub on `lucky-six:events` carries events between
 workers and the API's Socket.IO gateway. The frontend is a separate Next.js app
 in `frontend`; production hosting is on Vercel, while the API is exposed as
@@ -79,7 +79,7 @@ SETTLEMENT_PENDING -- accepted bets processed --> SETTLED
   Draw numbers start at 1 if there is no earlier draw.
 - A new draw is open for four minutes. `drawAt` is 30 seconds after `closeAt`,
   leaving a closed interval before results are generated.
-- The engine writes each result ball and the statistics to PostgreSQL, sets
+- The engine writes each result ball and the statistics to Turso, sets
   `resultAt`, then publishes `ball.drawn` once per ball and `draw.completed`.
 - The API keeps the active draw and the most recent complete result available
   together. This lets the frontend keep displaying the prior result while the
@@ -109,10 +109,9 @@ selections, and settlements. It deliberately preserves wallets, balances,
 payment records, and ledger entries. The engine then starts at draw 1.
 
 The engine processes the oldest unfinished draw before moving to a newer one.
-Draw creation is serialized with a PostgreSQL advisory transaction lock so two
-engine instances cannot both create the next open draw. Result balls,
-statistics, and the transition to `SETTLEMENT_PENDING` are committed together;
-an interrupted `DRAWING` state is retried on the next scheduler tick.
+Draw creation uses the unique draw-number constraint, while result balls,
+statistics, and the transition to `SETTLEMENT_PENDING` are committed together.
+An interrupted `DRAWING` state is retried on the next scheduler tick.
 
 ## 4. HTTP API: endpoints that exist now
 
@@ -137,7 +136,7 @@ Basic service response:
 
 ### `GET /health`
 
-Checks PostgreSQL and Redis in parallel. On success:
+Checks Turso and Redis in parallel. On success:
 
 ```json
 {
@@ -269,7 +268,7 @@ Returns:
 { "walletId": "wallet-uuid", "balance": "1000" }
 ```
 
-Wallet balances and stakes are PostgreSQL `BigInt` values, serialized as
+Wallet balances and stakes are Prisma `BigInt` values stored by SQLite/libSQL as
 decimal strings. Keep them as strings or parse with `BigInt` for exact
 arithmetic; do not assume they are JavaScript-safe integers.
 
@@ -337,7 +336,7 @@ The default house margin is 8%; the minimum offered price is 1.01 and values
 are rounded to two decimal places. An optional exposure adjustment is accepted
 by the calculation helper, but the current update path does not pass one.
 `PricingConfig.exposureFactor` is stored in the schema but isn't used in this
-path. The service versions odds in PostgreSQL and marks the previous version
+path. The service versions odds in Turso and marks the previous version
 inactive when the value changes. Bets lock the active odds when accepted.
 
 The API currently reads and returns odds; no public endpoint was found for

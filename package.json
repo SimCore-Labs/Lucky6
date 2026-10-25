@@ -24,10 +24,9 @@
     "db:validate": "npm run db:validate --workspace=backend",
     "db:generate": "npm run db:generate --workspace=backend",
     "db:migrate:dev": "npm run db:migrate:dev --workspace=backend",
-    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=backend",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run build --workspace=@lucky-six/contracts && npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run build --workspace=@lucky-six/contracts && npm run build --workspace=backend && npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"
   }
 }

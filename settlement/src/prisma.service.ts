@@ -1,15 +1,15 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../backend/dist/generated/prisma/client.js';
+import { createTursoAdapter } from '../../backend/dist/prisma/turso-adapter.js';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const databaseUrl = process.env.DATABASE_URL ?? '';
     super({
-      adapter: new PrismaPg({
-        connectionString: databaseUrl,
-      }),
+      adapter: createTursoAdapter(
+        process.env.DATABASE_URL,
+        process.env.TURSO_AUTH_TOKEN,
+      ),
     });
   }
 

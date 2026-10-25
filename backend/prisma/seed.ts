@@ -1,11 +1,13 @@
 import { PrismaClient } from '../src/generated/prisma/client.js';
-import { PrismaPg } from '@prisma/adapter-pg';
-import pg from 'pg';
+import 'dotenv/config';
+import { createTursoAdapter } from '../src/prisma/turso-adapter.js';
 
-const connectionString = process.env.DATABASE_URL || 'postgres://postgres:Ayomidemuiz20@muiz-dev-solutions-db.cdkwoegsgo9h.eu-north-1.rds.amazonaws.com:5432/lucky6?sslmode=no-verify';
-const pool = new pg.Pool({ connectionString, ssl: { rejectUnauthorized: false } });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient({
+  adapter: createTursoAdapter(
+    process.env.DATABASE_URL,
+    process.env.TURSO_AUTH_TOKEN,
+  ),
+});
 
 async function upsertOddsForSelection(selectionId: string, oddsValue: number) {
   // Check if an odds record already exists for this selection at version 1
@@ -103,5 +105,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-    await pool.end();
   });

@@ -10,4 +10,6 @@ wesheild.pem
 !.env.example
 
 backend/src/generated/prisma/
-
+backend/dev.db
+backend/dev.db-shm
+backend/dev.db-wal

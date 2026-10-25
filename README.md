@@ -1,5 +1,9 @@
 Bro, I researched the current official docs before laying this out. A few things have changed since the older Solana/Next.js patterns you may have used before:
 
+> **Current backend note:** the application configuration now uses Prisma 7 with
+> Turso (SQLite/libSQL). PostgreSQL references below are architectural planning
+> material and do not describe the current Prisma datasource or runtime.
+
 * **Next.js 16** is current, with Node 20.9+ minimum, and Turbopack is now the default. ([Next.js][1])
 * For a new Solana frontend, Solana now recommends **`@solana/kit` + `@solana/react`**, with `@solana/kit-plugin-wallet`, rather than starting a new project around the older `@solana/web3.js`/wallet-adapter stack. Wallet Adapter is still supported, but Kit is the current recommended direction. ([Solana][2])
 * **TanStack Query v5** is current and is a very good fit for Lucky Six's constantly changing draw/market/balance data. ([TanStack][3])
