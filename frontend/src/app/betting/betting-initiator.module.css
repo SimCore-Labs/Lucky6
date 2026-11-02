@@ -1,0 +1,116 @@
+.panel {
+  width: min(100%, 760px);
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 36px auto 0;
+  padding: 20px 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(15 23 42 / 5%);
+}
+
+.stakeFields {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.stakeInputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px 32px;
+}
+
+.stakeField {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 128px);
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.payout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 24px;
+  padding: 0 8px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.payout output {
+  color: #123b8a;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.stakeInput {
+  appearance: textfield;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  background: #f9fafb;
+  color: #17231c;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.stakeInput::-webkit-inner-spin-button,
+.stakeInput::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.stakeInput:focus,
+.stakeInput:focus-visible {
+  border-color: #d1d5db;
+  outline: none;
+}
+
+@media (max-width: 480px) {
+  .panel {
+    margin-top: 28px;
+    padding: 12px;
+  }
+
+  .stakeInputs {
+    gap: 12px 16px;
+  }
+
+  .stakeField {
+    grid-template-columns: max-content 82px;
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .stakeInput {
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .payout {
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .payout output {
+    font-size: 14px;
+  }
+}

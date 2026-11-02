@@ -1,0 +1,297 @@
+.section {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  grid-template-columns: max-content 240px;
+  align-items: center;
+  column-gap: clamp(48px, 7vw, 96px);
+  margin: clamp(56px, 8vh, 88px) auto 0;
+}
+
+.gamePanel {
+  width: 280px;
+  max-width: 100%;
+}
+
+.heading,
+.oddsHeading {
+  margin: 0;
+  color: #17231c;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.instructions {
+  max-width: 280px;
+  margin: 8px auto 18px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.outcomes {
+  display: grid;
+  width: 220px;
+  margin-inline: auto;
+  gap: 10px;
+}
+
+.outcome,
+.outcomeSkeleton {
+  display: flex;
+  width: 100%;
+  min-height: 84px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.outcome {
+  color: #17231c;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.outcome:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.outcome:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 3px;
+}
+
+.selectedOutcome {
+  border-color: #123b8a;
+  background: #eff6ff;
+}
+
+.outcomeIndicator,
+.skeletonIndicator {
+  position: relative;
+  display: grid;
+  width: 88px;
+  height: 58px;
+  flex: 0 0 58px;
+  place-items: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 35%);
+}
+
+.triangleUp::before,
+.triangleDown::before,
+.rectangle::before {
+  position: absolute;
+  z-index: 0;
+  background: #123b8a;
+  content: '';
+}
+
+.triangleUp::before {
+  inset: 0;
+  clip-path: polygon(39% 4%, 61% 4%, 100% 96%, 0 96%);
+}
+
+.triangleDown::before {
+  inset: 0;
+  clip-path: polygon(0 4%, 100% 4%, 61% 96%, 39% 96%);
+}
+
+.rectangle::before {
+  inset: 20% 0;
+  border-radius: 5px;
+}
+
+.shapeLabel {
+  position: relative;
+  z-index: 1;
+}
+
+.outcomeBoundary {
+  color: #6b7280;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.oddsPanel {
+  width: 240px;
+  color: #17231c;
+}
+
+.oddsHeading {
+  margin-bottom: 14px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+
+.oddsList {
+  display: grid;
+  margin: 0;
+  gap: 8px;
+}
+
+.oddsRow {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 4%);
+}
+
+.oddsRow dt {
+  color: #374151;
+}
+
+.oddsRow dd {
+  margin: 0;
+  color: #17231c;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.selectedOdds {
+  border-color: #123b8a;
+  background: #eff6ff;
+}
+
+.message {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.screenReaderOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.skeletonBlock {
+  display: block;
+  background-color: #e8edf4;
+  background-image: linear-gradient(
+    100deg,
+    #e8edf4 20%,
+    #f6f8fb 45%,
+    #e8edf4 70%
+  );
+  background-size: 220% 100%;
+  animation: skeletonShimmer 1.45s ease-in-out infinite;
+}
+
+.headingSkeleton {
+  width: 88px;
+  height: 14px;
+  margin: 0 auto;
+  border-radius: 999px;
+}
+
+.instructionsSkeleton {
+  width: min(100%, 260px);
+  height: 10px;
+  margin: 8px auto 18px;
+  border-radius: 999px;
+}
+
+.skeletonIndicator {
+  height: 58px;
+  border-radius: 3px;
+}
+
+.labelSkeleton {
+  width: 34px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.oddsHeadingSkeleton {
+  width: 48px;
+  height: 13px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+}
+
+.oddsLabelSkeleton {
+  width: 38px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.oddsValueSkeleton {
+  width: 34px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+@keyframes skeletonShimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .section {
+    column-gap: 32px;
+  }
+}
+
+@media (max-width: 760px) {
+  .section {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 32px;
+  }
+
+  .gamePanel {
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .oddsPanel {
+    width: 100%;
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 420px) {
+  .outcomes {
+    width: min(100%, 220px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outcome {
+    transition: none;
+  }
+
+  .skeletonBlock {
+    animation: none;
+  }
+}

@@ -1,0 +1,314 @@
+.section {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  column-gap: clamp(72px, 9vw, 132px);
+  margin: clamp(56px, 8vh, 88px) auto 0;
+}
+
+.gamePanel {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.heading,
+.oddsHeading {
+  margin: 0;
+  color: #17231c;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.instructions {
+  margin: 8px 0 18px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.selectionGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 40px);
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 0;
+}
+
+.colorRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  min-height: 54px;
+  align-items: center;
+  border-top: 1px solid #e5e7eb;
+}
+
+.colorRow:last-child {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.colorBall {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin-inline: auto;
+  border-radius: 50%;
+  box-shadow:
+    inset -3px -4px 6px rgb(0 0 0 / 22%),
+    inset 2px 2px 4px rgb(255 255 255 / 28%),
+    0 1px 3px rgb(15 23 42 / 20%);
+}
+
+.ball {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 35%);
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.ball:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.ball:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ball:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 3px;
+}
+
+.selectedBall {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px #111827;
+  transform: scale(1.05);
+}
+
+.blueBall {
+  background: #123b8a;
+}
+
+.redBall {
+  background: #cf2832;
+}
+
+.greenBall {
+  background: #20a14a;
+}
+
+.unavailableCell {
+  width: 36px;
+  height: 36px;
+  justify-self: center;
+}
+
+.oddsPanel {
+  width: max-content;
+  max-width: 100%;
+  color: #17231c;
+}
+
+.oddsHeading {
+  margin-bottom: 14px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+
+.oddsTableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 4%);
+}
+
+.oddsTable {
+  border-collapse: collapse;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.oddsTable th,
+.oddsTable td {
+  min-width: 42px;
+  padding: 10px 6px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.oddsTable thead th {
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.oddsTable th:first-child {
+  min-width: 34px;
+  width: 34px;
+}
+
+.oddsTable tbody th {
+  padding-inline: 8px;
+}
+
+.oddsTable td {
+  color: #17231c;
+  font-weight: 700;
+}
+
+.oddsTable tbody tr:last-child th,
+.oddsTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.selectedOdds {
+  background: #eff6ff;
+  color: #123b8a !important;
+}
+
+.message {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.screenReaderOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.skeletonBlock {
+  display: block;
+  background-color: #e8edf4;
+  background-image: linear-gradient(
+    100deg,
+    #e8edf4 20%,
+    #f6f8fb 45%,
+    #e8edf4 70%
+  );
+  background-size: 220% 100%;
+  animation: skeletonShimmer 1.45s ease-in-out infinite;
+}
+
+.headingSkeleton {
+  width: 84px;
+  height: 14px;
+  margin: 0 auto;
+  border-radius: 999px;
+}
+
+.instructionsSkeleton {
+  width: min(100%, 260px);
+  height: 10px;
+  margin: 8px auto 18px;
+  border-radius: 999px;
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 40px);
+  align-items: center;
+  justify-items: center;
+  gap: 9px 8px;
+}
+
+.skeletonBall {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.oddsHeadingSkeleton {
+  width: 48px;
+  height: 13px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+}
+
+.skeletonOddsTable {
+  display: grid;
+  grid-template-columns: repeat(7, 42px);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.skeletonOddsCell {
+  height: 36px;
+  border: 1px solid #fff;
+}
+
+@keyframes skeletonShimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .section {
+    column-gap: 32px;
+  }
+}
+
+@media (max-width: 760px) {
+  .section {
+    grid-template-columns: max-content;
+    row-gap: 32px;
+  }
+
+  .oddsPanel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .selectionGrid,
+  .skeletonGrid {
+    grid-template-columns: repeat(6, minmax(30px, 1fr));
+    column-gap: 4px;
+  }
+
+  .ball,
+  .unavailableCell,
+  .skeletonBall {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ball {
+    transition: none;
+  }
+
+  .skeletonBlock {
+    animation: none;
+  }
+}

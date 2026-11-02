@@ -251,3 +251,13 @@
     display: none;
   }
 }
+
+@media (max-width: 360px) {
+  .networkStatus {
+    gap: 0;
+  }
+
+  .networkStatus span:first-child {
+    display: none;
+  }
+}

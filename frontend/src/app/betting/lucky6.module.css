@@ -299,44 +299,7 @@
   }
 }
 
-@media (max-width: 760px) {
-  .section {
-    grid-template-columns: max-content 220px;
-    column-gap: clamp(16px, 4vw, 26px);
-  }
-
-  .selectedBallsBox {
-    margin-top: 28px;
-  }
-
-  .selectionActions {
-    gap: 8px;
-    margin-top: 28px;
-  }
-
-  .luckyDipButton,
-  .clearButton {
-    padding-inline: 10px;
-    font-size: 11px;
-  }
-
-  .numberGrid {
-    grid-template-columns: repeat(10, 27px);
-    gap: 5px;
-  }
-
-  .ball {
-    width: 27px;
-    height: 27px;
-    font-size: 10px;
-  }
-
-  .oddsPanel {
-    width: 220px;
-  }
-}
-
-@media (max-width: 640px) {
+@media (max-width: 800px) {
   .section {
     width: fit-content;
     grid-template-columns: max-content;
@@ -356,6 +319,14 @@
 
   .oddsPanel {
     width: min(100%, 280px);
+  }
+}
+
+@media (max-width: 640px) {
+  .luckyDipButton,
+  .clearButton {
+    padding-inline: 10px;
+    font-size: 11px;
   }
 }
 

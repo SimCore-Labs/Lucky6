@@ -5,7 +5,15 @@ import { useQuery } from '@tanstack/react-query';
 import { getMarkets } from '@/lib/api';
 import styles from './lucky6.module.css';
 
-export function Lucky6() {
+export function Lucky6({
+  heading = 'LUCKY SIX',
+  instructions = 'Choose 6 numbers. Match 3 or more to win.',
+  idPrefix = 'lucky6',
+}: {
+  heading?: string;
+  instructions?: string;
+  idPrefix?: string;
+}) {
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const marketsQuery = useQuery({
     queryKey: ['markets'],
@@ -29,7 +37,7 @@ export function Lucky6() {
   }
 
   if (marketsQuery.isPending) {
-    return <Lucky6Skeleton />;
+    return <Lucky6Skeleton heading={heading} idPrefix={idPrefix} />;
   }
 
   function selectLuckyDip() {
@@ -45,13 +53,16 @@ export function Lucky6() {
   }
 
   return (
-    <section className={styles.section} aria-labelledby="lucky6-heading">
+    <section
+      className={styles.section}
+      aria-labelledby={`${idPrefix}-heading`}
+    >
       <div className={styles.gamePanel}>
-        <h2 className={styles.label} id="lucky6-heading">
-          LUCKY SIX
+        <h2 className={styles.label} id={`${idPrefix}-heading`}>
+          {heading}
         </h2>
         <p className={styles.instructions}>
-          Choose 6 numbers. Match 3 or more to win.
+          {instructions}
         </p>
         <div
           className={styles.numberGrid}
@@ -86,8 +97,11 @@ export function Lucky6() {
           })}
         </div>
       </div>
-      <aside className={styles.oddsPanel} aria-labelledby="lucky6-odds-heading">
-        <h3 className={styles.oddsHeading} id="lucky6-odds-heading">
+      <aside
+        className={styles.oddsPanel}
+        aria-labelledby={`${idPrefix}-odds-heading`}
+      >
+        <h3 className={styles.oddsHeading} id={`${idPrefix}-odds-heading`}>
           ODDS
         </h3>
         {marketsQuery.isError ? (
@@ -146,15 +160,25 @@ export function Lucky6() {
   );
 }
 
-function Lucky6Skeleton() {
+function Lucky6Skeleton({
+  heading,
+  idPrefix,
+}: {
+  heading: string;
+  idPrefix: string;
+}) {
   return (
     <section
       className={`${styles.section} ${styles.loadingSection}`}
-      aria-label="Lucky Six game loading"
+      aria-labelledby={`${idPrefix}-loading-heading`}
       aria-busy="true"
     >
-      <span className={styles.screenReaderOnly} role="status">
-        Loading Lucky Six game
+      <span
+        className={styles.screenReaderOnly}
+        id={`${idPrefix}-loading-heading`}
+        role="status"
+      >
+        Loading {heading} game
       </span>
       <div className={styles.gamePanel} aria-hidden="true">
         <span className={`${styles.skeletonBlock} ${styles.headingSkeleton}`} />

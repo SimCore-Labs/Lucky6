@@ -19,3 +19,132 @@
   min-height: calc(100dvh - 88px);
   padding: 48px clamp(20px, 5vw, 64px);
 }
+
+.sectionSlot {
+  width: 100%;
+  max-width: 960px;
+  min-height: 126px;
+  margin: 48px auto 0;
+}
+
+.sectionLogos {
+  display: flex;
+  min-height: 124px;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(28px, 5vw, 64px);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.gameLogo {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 92px;
+  min-height: 104px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #17231c;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.gameLogo:hover {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.gameLogo:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 3px;
+}
+
+.selectedGame {
+  border-color: #dbeafe;
+  background: #eff6ff;
+}
+
+.sectionLogo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.emptyStage {
+  display: flex;
+  min-height: min(46vh, 420px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin: 24px auto 0;
+  text-align: center;
+}
+
+.emptyBall {
+  display: grid;
+  width: clamp(112px, 16vw, 168px);
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #414141, #141414 72%);
+  color: #fff;
+  font-size: clamp(30px, 5vw, 48px);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 3px rgb(0 0 0 / 45%);
+  box-shadow:
+    inset -10px -12px 18px rgb(0 0 0 / 38%),
+    inset 6px 6px 14px rgb(255 255 255 / 12%),
+    0 12px 28px rgb(15 23 42 / 20%);
+}
+
+.emptyStage h1 {
+  margin: 0;
+  color: #17231c;
+  font-size: clamp(18px, 2.4vw, 24px);
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.gameStage {
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .sectionLogos {
+    min-height: 112px;
+    gap: 16px;
+    justify-content: flex-start;
+  }
+
+  .gameLogo {
+    font-size: 12px;
+  }
+
+  .sectionLogo {
+    width: 52px;
+    height: 52px;
+  }
+
+  .emptyStage {
+    min-height: 40vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gameLogo {
+    transition: none;
+  }
+}
