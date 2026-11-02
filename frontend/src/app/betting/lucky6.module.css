@@ -1,0 +1,396 @@
+.section {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  grid-template-columns: max-content 240px;
+  align-items: center;
+  column-gap: clamp(96px, 12vw, 176px);
+  row-gap: 0;
+  margin: clamp(56px, 8vh, 88px) auto 0;
+}
+
+.gamePanel {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.label {
+  width: 100%;
+  margin: 0;
+  color: #17231c;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.instructions {
+  width: 100%;
+  margin: 8px 0 14px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.numberGrid {
+  display: grid;
+  width: max-content;
+  grid-template-columns: repeat(10, 30px);
+  gap: 6px;
+}
+
+.ball {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 35%);
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.ball:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.ball:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 3px;
+}
+
+.ball:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.selectedBall {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px #111827;
+  transform: scale(1.05);
+}
+
+.redBall {
+  background: #cf2832;
+}
+
+.blueBall {
+  background: #123b8a;
+}
+
+.greenBall {
+  background: #20a14a;
+}
+
+.blackBall {
+  background: #141414;
+}
+
+.selectedBallsBox {
+  display: flex;
+  width: 100%;
+  min-height: 62px;
+  grid-column: 1;
+  grid-row: 2;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: clamp(28px, 4vh, 44px);
+  padding: 12px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.selectionActions {
+  display: flex;
+  grid-column: 2;
+  grid-row: 2;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: clamp(28px, 4vh, 44px);
+}
+
+.luckyDipButton,
+.clearButton {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #123b8a;
+  border-radius: 8px;
+  background: #123b8a;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.luckyDipButton:hover,
+.clearButton:hover:not(:disabled) {
+  border-color: #0e2f6d;
+  background: #0e2f6d;
+}
+
+.clearButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.luckyDipButton:focus-visible,
+.clearButton:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 3px;
+}
+
+.oddsPanel {
+  width: 240px;
+  color: #17231c;
+}
+
+.oddsHeading {
+  margin: 0 0 14px;
+  color: #17231c;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.oddsList {
+  display: grid;
+  margin: 0;
+  gap: 8px;
+}
+
+.oddsRow {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 4%);
+}
+
+.oddsRow dt {
+  color: #374151;
+  white-space: nowrap;
+}
+
+.oddsRow dd {
+  margin: 0;
+  color: #17231c;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.oddsMessage {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.screenReaderOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.skeletonBlock,
+.skeletonBall {
+  display: block;
+  background-color: #e8edf4;
+  background-image: linear-gradient(
+    100deg,
+    #e8edf4 20%,
+    #f6f8fb 45%,
+    #e8edf4 70%
+  );
+  background-size: 220% 100%;
+  animation: skeletonShimmer 1.45s ease-in-out infinite;
+}
+
+.headingSkeleton {
+  width: 104px;
+  height: 14px;
+  margin: 0 auto;
+  border-radius: 999px;
+}
+
+.instructionsSkeleton {
+  width: min(100%, 250px);
+  height: 10px;
+  margin: 8px auto 14px;
+  border-radius: 999px;
+}
+
+.skeletonBall {
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.oddsHeadingSkeleton {
+  width: 54px;
+  height: 13px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+}
+
+.oddsRowSkeleton {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 4%);
+}
+
+.oddsLabelSkeleton {
+  width: 62px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.oddsValueSkeleton {
+  width: 30px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.selectedBallSkeleton {
+  cursor: default;
+}
+
+.buttonSkeleton {
+  width: 104px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+@keyframes skeletonShimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .section {
+    grid-template-columns: max-content 220px;
+    column-gap: clamp(16px, 4vw, 26px);
+  }
+
+  .selectedBallsBox {
+    margin-top: 28px;
+  }
+
+  .selectionActions {
+    gap: 8px;
+    margin-top: 28px;
+  }
+
+  .luckyDipButton,
+  .clearButton {
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+
+  .numberGrid {
+    grid-template-columns: repeat(10, 27px);
+    gap: 5px;
+  }
+
+  .ball {
+    width: 27px;
+    height: 27px;
+    font-size: 10px;
+  }
+
+  .oddsPanel {
+    width: 220px;
+  }
+}
+
+@media (max-width: 640px) {
+  .section {
+    width: fit-content;
+    grid-template-columns: max-content;
+    row-gap: 32px;
+  }
+
+  .selectedBallsBox {
+    grid-row: auto;
+    margin-top: 0;
+  }
+
+  .selectionActions {
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 0;
+  }
+
+  .oddsPanel {
+    width: min(100%, 280px);
+  }
+}
+
+@media (max-width: 480px) {
+  .selectedBallsBox {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .selectionActions {
+    grid-column: 1;
+    justify-content: center;
+  }
+
+  .numberGrid {
+    grid-template-columns: repeat(7, 28px);
+    gap: 6px 4px;
+  }
+
+  .ball {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ball,
+  .luckyDipButton,
+  .clearButton {
+    transition: none;
+  }
+
+  .skeletonBlock,
+  .skeletonBall {
+    animation: none;
+  }
+}
