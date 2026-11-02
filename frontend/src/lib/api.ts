@@ -169,6 +169,8 @@ export interface WalletProfileResponse {
   currency?: string;
 }
 
+export const walletMeQueryKey = ['wallet', 'me'] as const;
+
 export interface PaymentQuoteResponse {
   credits: string;
   creditPriceUsd: string;

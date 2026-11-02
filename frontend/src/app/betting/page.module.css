@@ -1,4 +1,21 @@
+:global(*) {
+  box-sizing: border-box;
+}
+
+:global(html),
+:global(body) {
+  min-height: 100%;
+  margin: 0;
+}
+
 .page {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: #fff;
+  color: #111827;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.content {
+  min-height: calc(100dvh - 88px);
+  padding: 48px clamp(20px, 5vw, 64px);
 }

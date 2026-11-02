@@ -1,0 +1,198 @@
+.section {
+  display: flex;
+  width: 100%;
+  max-width: 960px;
+  min-height: clamp(280px, 40vh, 440px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin-inline: auto;
+  padding: 28px;
+  border-radius: 36px;
+  background: #2563eb;
+  color: #fff;
+}
+
+.heading {
+  display: flex;
+  min-height: 19px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font-size: clamp(12px, 1.5vw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.headingSkeleton {
+  display: inline-block;
+  width: 42px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.balls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 0.8vw, 12px);
+}
+
+.ball {
+  display: inline-grid;
+  width: clamp(48px, 5.4vw, 72px);
+  height: clamp(48px, 5.4vw, 72px);
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: clamp(1.2rem, 3vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 40%);
+}
+
+.redBall {
+  background: #cf2832;
+}
+
+.blueBall {
+  background: #123b8a;
+}
+
+.greenBall {
+  background: #20a14a;
+}
+
+.blackBall {
+  background: #141414;
+}
+
+.yellowBall {
+  background: #efae00;
+}
+
+.loadingBall {
+  background-color: rgb(255 255 255 / 20%);
+  box-shadow: none;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.loadingBall:nth-child(2) {
+  animation-delay: 100ms;
+}
+
+.loadingBall:nth-child(3) {
+  animation-delay: 200ms;
+}
+
+.loadingBall:nth-child(4) {
+  animation-delay: 300ms;
+}
+
+.loadingBall:nth-child(5) {
+  animation-delay: 400ms;
+}
+
+.loadingBall:nth-child(6) {
+  animation-delay: 500ms;
+}
+
+.message {
+  max-width: 80%;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.timer {
+  display: flex;
+  min-width: 152px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  text-align: center;
+}
+
+.timer span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.timer strong {
+  font-size: clamp(24px, 3vw, 36px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.urgentTimer strong {
+  color: #fff3a3;
+}
+
+.timerSkeletonGroup {
+  display: flex;
+  min-width: 152px;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.timerSkeletonLabel {
+  width: 94px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.timerSkeletonValue {
+  width: 88px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.headingSkeleton,
+.loadingBall,
+.timerSkeletonLabel,
+.timerSkeletonValue {
+  background-image: linear-gradient(
+    100deg,
+    rgb(255 255 255 / 12%) 20%,
+    rgb(255 255 255 / 32%) 45%,
+    rgb(255 255 255 / 12%) 70%
+  );
+  background-size: 220% 100%;
+}
+
+.headingSkeleton,
+.timerSkeletonLabel,
+.timerSkeletonValue {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headingSkeleton,
+  .loadingBall,
+  .timerSkeletonLabel,
+  .timerSkeletonValue {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .section {
+    gap: 18px;
+    padding: 20px 14px;
+  }
+}
