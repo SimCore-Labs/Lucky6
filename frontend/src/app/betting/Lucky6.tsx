@@ -37,6 +37,18 @@ export function Lucky6({
       `${selectedNumbers.length}:${selectedNumbers.includes(49) ? '1' : '0'}`,
   );
   const maxStake = Number(pickSelection?.maxStake ?? pickMarket?.maxStake ?? 50);
+  const pickOdds = Array.from({ length: 6 }, (_, index) => {
+    const count = index + 1;
+    return {
+      count,
+      without49: pickMarket?.selections.find(
+        (selection) => selection.value === `${count}:0`,
+      ),
+      with49: pickMarket?.selections.find(
+        (selection) => selection.value === `${count}:1`,
+      ),
+    };
+  });
 
   function toggleNumber(number: number) {
     const next = selectedNumbers.includes(number)
@@ -154,29 +166,51 @@ export function Lucky6({
           <p className={styles.oddsMessage}>
             {heading} is not currently available.
           </p>
-        ) : selectedNumbers.length === 0 ? (
-          <p className={styles.oddsMessage}>
-            Select 1–6 numbers to see the odds.
-          </p>
-        ) : maxStake < 1 ? (
-          <p className={styles.oddsMessage}>
-            This pick cannot be placed within the current payout limit.
-          </p>
         ) : (
-          <div className={styles.oddsList}>
-            <div className={styles.oddsRow}>
-              <span>
-                All {selectedNumbers.length}{' '}
-                {marketType === 'PICK_NUMBERS_APPEAR'
-                  ? 'appear'
-                  : 'stay absent'}
-              </span>
-              <strong>{pickSelection?.currentOdds ?? '—'}×</strong>
-            </div>
-            <p className={styles.oddsMessage}>
-              Max stake {maxStake} credits
-            </p>
-          </div>
+          <>
+            <table className={styles.pickOddsTable}>
+              <thead>
+                <tr>
+                  <th scope="col">Picks</th>
+                  <th scope="col">Without 49</th>
+                  <th scope="col">With 49</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pickOdds.map(({ count, without49, with49 }) => (
+                  <tr key={count}>
+                    <th scope="row">{count}</th>
+                    {[without49, with49].map((selection, index) => {
+                      const includes49 = index === 1;
+                      const isSelected =
+                        selectedNumbers.length === count &&
+                        selectedNumbers.includes(49) === includes49;
+                      const isUnavailable =
+                        !selection || Number(selection.maxStake ?? pickMarket.maxStake ?? 50) < 1;
+
+                      return (
+                        <td
+                          className={
+                            isSelected ? styles.selectedPickOdds : undefined
+                          }
+                          key={includes49 ? 'with49' : 'without49'}
+                        >
+                          {isUnavailable ? '—' : `${selection.currentOdds}×`}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {selectedNumbers.length > 0 && (
+              <p className={styles.oddsMessage}>
+                {maxStake < 1
+                  ? 'This pick cannot be placed within the current payout limit.'
+                  : `Max stake ${maxStake} credits.`}
+              </p>
+            )}
+          </>
         )}
       </aside>
       <div className={styles.selectedBallsBox} aria-label="Selected balls">

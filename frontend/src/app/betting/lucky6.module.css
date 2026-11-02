@@ -174,6 +174,45 @@
   gap: 8px;
 }
 
+.pickOddsTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #374151;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.pickOddsTable th,
+.pickOddsTable td {
+  padding: 7px 3px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.pickOddsTable thead th {
+  color: #6b7280;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pickOddsTable tbody th {
+  width: 32px;
+  color: #17231c;
+  font-weight: 700;
+}
+
+.pickOddsTable tbody td {
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.selectedPickOdds {
+  background: #eaf1ff;
+  color: #123b8a;
+}
+
 .oddsRow {
   display: flex;
   min-height: 42px;
