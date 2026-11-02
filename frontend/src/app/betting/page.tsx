@@ -1,13 +1,5 @@
-import { BettingPage } from '@/components/betting/BettingPage';
-import { GameShell } from '@/components/layout/GameShell';
-import { Providers } from '@/providers/Providers';
+import styles from './page.module.css';
 
-export default function BettingRoute() {
-  return (
-    <Providers>
-      <GameShell>
-        <BettingPage />
-      </GameShell>
-    </Providers>
-  );
+export default function BettingPage() {
+  return <main className={styles.page} aria-label="Betting page" />;
 }
