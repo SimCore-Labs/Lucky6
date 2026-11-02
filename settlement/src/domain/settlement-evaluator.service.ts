@@ -110,4 +110,40 @@ export class SettlementEvaluatorService {
     const drawnNumbers = new Set(draw.balls.map((ball) => ball.number));
     return selectedNumbers.filter((number) => drawnNumbers.has(number)).length;
   }
+
+  evaluateNumberPick(
+    marketType: string,
+    selectedNumbers: number[],
+    draw: SettlementDrawData,
+  ): { matchedCount: number; won: boolean } {
+    if (
+      !['PICK_NUMBERS_APPEAR', 'PICK_NUMBERS_ABSENT'].includes(marketType)
+    ) {
+      throw new Error(`Unsupported number-pick market: ${marketType}`);
+    }
+    if (
+      selectedNumbers.length < 1 ||
+      selectedNumbers.length > 6 ||
+      new Set(selectedNumbers).size !== selectedNumbers.length ||
+      selectedNumbers.some(
+        (number) => !Number.isInteger(number) || number < 1 || number > 49,
+      )
+    ) {
+      throw new Error(
+        'Number-pick ticket must contain one to six distinct numbers from 1 to 49.',
+      );
+    }
+
+    const drawnNumbers = new Set(draw.balls.map((ball) => ball.number));
+    const matchedCount = selectedNumbers.filter((number) =>
+      drawnNumbers.has(number),
+    ).length;
+    return {
+      matchedCount,
+      won:
+        marketType === 'PICK_NUMBERS_APPEAR'
+          ? matchedCount === selectedNumbers.length
+          : matchedCount === 0,
+    };
+  }
 }

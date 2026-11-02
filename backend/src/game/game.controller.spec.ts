@@ -216,6 +216,8 @@ describe('GameController current draw', () => {
           type: 'FIRST_BALL_COLOR',
           title: 'First Ball Color',
           description: 'Predict the first ball color.',
+          maxStake: '50',
+          maxGrossPayout: '1000000',
           selections: [
             {
               id: 'red-id',
@@ -223,6 +225,7 @@ describe('GameController current draw', () => {
               label: 'Red',
               currentOdds: 2.77,
               oddsVersion: 2,
+              maxStake: '50',
             },
           ],
         },

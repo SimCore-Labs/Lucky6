@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMarkets } from '@/lib/api';
+import { useUiStore } from '@/store/ui/useUiStore';
 import styles from './odd-even.module.css';
 
 const outcomes = [
@@ -11,7 +11,13 @@ const outcomes = [
 ] as const;
 
 export function OddEven() {
-  const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
+  const selectedOutcome = useUiStore(
+    (state) =>
+      state.selectedBets.find((bet) => bet.marketType === 'SUM_ODD_EVEN')
+        ?.selectionValue ?? null,
+  );
+  const selectBet = useUiStore((state) => state.selectBet);
+  const removeBet = useUiStore((state) => state.removeBet);
   const marketsQuery = useQuery({
     queryKey: ['markets'],
     queryFn: ({ signal }) => getMarkets(signal),
@@ -61,6 +67,7 @@ export function OddEven() {
               if (!selection) return null;
 
               const isSelected = selectedOutcome === outcome.value;
+              if (!market) return null;
               return (
                 <button
                   className={`${styles.outcome} ${
@@ -69,7 +76,24 @@ export function OddEven() {
                   type="button"
                   key={selection.id}
                   aria-pressed={isSelected}
-                  onClick={() => setSelectedOutcome(outcome.value)}
+                  onClick={() => {
+                    if (isSelected) {
+                      removeBet(market.type);
+                      return;
+                    }
+                    selectBet({
+                      key: market.type,
+                      marketId: market.id,
+                      marketType: market.type,
+                      marketTitle: market.title,
+                      selectionId: selection.id,
+                      selectionValue: selection.value,
+                      selectionLabel: outcome.label,
+                      odds: selection.currentOdds,
+                      oddsVersion: selection.oddsVersion,
+                      maxStake: selection.maxStake ?? market.maxStake ?? '50',
+                    });
+                  }}
                 >
                   <span>{outcome.label}</span>
                   <span className={styles.odds}>{selection.currentOdds}×</span>

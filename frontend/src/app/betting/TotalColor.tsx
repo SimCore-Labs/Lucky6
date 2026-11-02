@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMarkets } from '@/lib/api';
+import { useUiStore } from '@/store/ui/useUiStore';
 import styles from './total-color.module.css';
 
 const outcomes = [
@@ -29,7 +29,13 @@ const outcomes = [
 ] as const;
 
 export function TotalColor() {
-  const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
+  const selectedOutcome = useUiStore(
+    (state) =>
+      state.selectedBets.find((bet) => bet.marketType === 'COLOR_MAJORITY')
+        ?.selectionValue ?? null,
+  );
+  const selectBet = useUiStore((state) => state.selectBet);
+  const removeBet = useUiStore((state) => state.removeBet);
   const marketsQuery = useQuery({
     queryKey: ['markets'],
     queryFn: ({ signal }) => getMarkets(signal),
@@ -76,6 +82,8 @@ export function TotalColor() {
           >
             {activeOutcomes.map((outcome) => {
               const isSelected = selectedOutcome === outcome.value;
+              const selection = selectionByValue.get(outcome.value);
+              if (!selection || !market) return null;
 
               return (
                 <button
@@ -85,7 +93,24 @@ export function TotalColor() {
                   type="button"
                   key={outcome.value}
                   aria-pressed={isSelected}
-                  onClick={() => setSelectedOutcome(outcome.value)}
+                  onClick={() => {
+                    if (isSelected) {
+                      removeBet(market.type);
+                      return;
+                    }
+                    selectBet({
+                      key: market.type,
+                      marketId: market.id,
+                      marketType: market.type,
+                      marketTitle: market.title,
+                      selectionId: selection.id,
+                      selectionValue: selection.value,
+                      selectionLabel: outcome.label,
+                      odds: selection.currentOdds,
+                      oddsVersion: selection.oddsVersion,
+                      maxStake: selection.maxStake ?? market.maxStake ?? '50',
+                    });
+                  }}
                 >
                   <span
                     className={`${styles.ball} ${outcome.ballClass}`}

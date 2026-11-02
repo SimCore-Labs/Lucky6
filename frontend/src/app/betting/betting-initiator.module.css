@@ -1,38 +1,87 @@
 .panel {
   width: min(100%, 760px);
-  min-height: 180px;
+  min-height: 150px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
   margin: 36px auto 0;
-  padding: 20px 28px;
+  padding: 20px clamp(16px, 4vw, 28px);
   border: 1px solid #e5e7eb;
   background: #fff;
 }
 
-.stakeFields {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  width: 100%;
+.emptySlip {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
 }
 
-.stakeInputs {
+.betRows {
+  display: grid;
+  gap: 10px;
+}
+
+.betRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 14px 32px;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.betDetails {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  color: #374151;
+  font-size: 12px;
+}
+
+.betDetails strong {
+  color: #17231c;
+  font-weight: 700;
+}
+
+.betDetails span:last-child {
+  color: #6b7280;
+  font-size: 11px;
 }
 
 .stakeField {
   display: grid;
-  grid-template-columns: max-content minmax(0, 128px);
+  grid-template-columns: max-content minmax(0, 100px);
   align-items: center;
   gap: 8px;
   color: #374151;
   font-size: 12px;
   font-weight: 600;
+}
+
+.betSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 36px;
+  margin-top: 16px;
+}
+
+.summaryItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.summaryItem output {
+  color: #17231c;
+  font-variant-numeric: tabular-nums;
 }
 
 .payout {
@@ -52,6 +101,132 @@
   font-size: 16px;
   font-variant-numeric: tabular-nums;
   font-weight: 750;
+}
+
+.separateBetsNote {
+  margin: 10px 0 0;
+  color: #6b7280;
+  font-size: 11px;
+  text-align: center;
+}
+
+.errorMessage {
+  margin: 10px 0 0;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.placeBetButton {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 1px solid #123b8a;
+  background: #123b8a;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.placeBetButton:hover:not(:disabled) {
+  border-color: #0e2f6d;
+  background: #0e2f6d;
+}
+
+.placeBetButton:focus-visible,
+.closeButton:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 3px;
+}
+
+.placeBetButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.reviewDialog {
+  position: relative;
+  width: min(480px, calc(100vw - 32px));
+  padding: 28px;
+  background: #fff;
+}
+
+.reviewDialog h2 {
+  margin: 0;
+  color: #17231c;
+  font-size: 20px;
+}
+
+.reviewDialog > p:not(.errorMessage) {
+  margin: 8px 32px 16px 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.closeButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.reviewList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #e5e7eb;
+  color: #17231c;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reviewList li div {
+  display: grid;
+  gap: 4px;
+}
+
+.reviewList li span {
+  color: #6b7280;
+}
+
+.reviewTotals {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.reviewDialog > .placeBetButton {
+  width: 100%;
+  margin-top: 12px;
 }
 
 .stakeInput {
@@ -87,12 +262,12 @@
     padding: 12px;
   }
 
-  .stakeInputs {
-    gap: 12px 16px;
+  .betRow {
+    gap: 10px;
   }
 
   .stakeField {
-    grid-template-columns: max-content 82px;
+    grid-template-columns: max-content 78px;
     gap: 6px;
     font-size: 10px;
   }
@@ -103,6 +278,10 @@
     font-size: 10px;
   }
 
+  .betSummary {
+    gap: 8px 20px;
+  }
+
   .payout {
     gap: 6px;
     font-size: 10px;
@@ -110,5 +289,9 @@
 
   .payout output {
     font-size: 14px;
+  }
+
+  .reviewDialog {
+    padding: 24px 18px 18px;
   }
 }

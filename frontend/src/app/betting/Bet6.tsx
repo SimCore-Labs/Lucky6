@@ -4,8 +4,9 @@ export function Bet6() {
   return (
     <Lucky6
       heading="BET ZERO"
-      instructions="Predict which numbers will not appear in the draw. Select 1 to 6 numbers below."
+      instructions="Choose 1 to 6 numbers. Every selected number must stay out of the draw."
       idPrefix="betzero"
+      marketType="PICK_NUMBERS_ABSENT"
     />
   );
 }

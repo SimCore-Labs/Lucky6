@@ -16,13 +16,16 @@ Launch with a small, explainable set of single-draw markets:
 6. **Total sum odd/even** — ODD or EVEN.
 7. **Exact color count** — choose RED, BLUE, or GREEN and predict its exact
    count; BLACK is a separate 49 jackpot outcome.
-8. **Pick six numbers** — choose six distinct numbers from 1–49; 3, 4, 5, or 6
-   matches win progressively higher prize tiers, while 0–2 matches lose.
+8. **Lucky Six** — choose 1–6 distinct numbers; every selected number must
+   appear or the bet loses.
+9. **Bet Zero** — choose 1–6 distinct numbers; every selected number must be
+   absent or the bet loses.
 
 The implemented pricing path derives probabilities from the draw model, applies
 an 8% target margin with round-down cent odds, and locks the selected odds when
-a bet is accepted. A bet may contain one market selection or one pick-six
-ticket. User-approved credit settings are **100 credits = $1**, purchased with
+a bet is accepted. A bet contains one ordinary market selection or one
+number-pick ticket. Rainbow selections are separate bets, not parlays.
+User-approved credit settings are **100 credits = $1**, purchased with
 SOL, winnings are non-withdrawable, and stakes are capped at 50 credits. The
 current pick-six schedule is listed in Section 4.6.
 
@@ -68,7 +71,8 @@ bet.
 | Total over/under 122.5 | OVER, UNDER | OVER means integer sum ≥123. UNDER means integer sum ≤122. | Exact sum distribution across both draw branches. |
 | Total odd/even | ODD, EVEN | The complete sum, including 49, has the selected parity. | Exact count of combinations with each parity across both branches. |
 | Exact color count | For RED, BLUE, or GREEN: exactly 0–6 of the selected color. For BLACK: exactly one BLACK (49 appears). | Count matching balls among all six result positions. BLACK appears at most once; do not offer "zero BLACK" as a color-count wager because it is a near-certain outcome with a decimal return below the stake at the standard margin. | Hypergeometric count for one normal color among 16 matching and 32 non-matching numbers, weighted across six-normal and five-normal-plus-49 branches. BLACK uses the jackpot probability. |
-| Pick six numbers | Six distinct player-selected numbers from 1–49. | Count how many selected numbers appear in the six-ball result. The highest exact match tier is paid: exactly 3, 4, 5, or 6. Zero, one, or two matches pay nothing. If the ticket contains 49 and the jackpot occurs, that is one hit, plus any selected normal numbers that appear. | Hypergeometric hit-count distribution, with separate probabilities depending on whether the ticket contains 49. |
+| Lucky Six (`PICK_NUMBERS_APPEAR`) | One to six distinct player-selected numbers from 1–49. | Every selected number appears; any miss loses the entire bet. No partial-match payout. | Exact inclusion probability based on pick count and whether 49 is selected. |
+| Bet Zero (`PICK_NUMBERS_ABSENT`) | One to six distinct player-selected numbers from 1–49. | None of the selected numbers appears; any hit loses the entire bet. | Exact absence probability based on pick count and whether 49 is selected. The 1.01 minimum odds floor applies to very likely selections. |
 
 Use these non-overlapping sum bands, which cover the full possible result range:
 
@@ -117,31 +121,26 @@ controlled.
   balls in a color; majority predicts which normal color has the greatest
   count, with ties going to NO MAJORITY.
 
-### 3.4 Pick-six ticket rules
+### 3.4 Lucky Six and Bet Zero pick rules
 
-1. The player selects exactly six **distinct** values from 1–49. The interface
-   must not accept repeated numbers or fewer/more than six.
-2. After the draw, count the intersection of the player's set and the six
-   drawn numbers. Order does not matter.
-3. Pay the highest applicable tier only:
-   - 0, 1, or 2 matches: lose; no payout.
-   - exactly 3 matches: tier 3 payout.
-   - exactly 4 matches: tier 4 payout.
-   - exactly 5 matches: tier 5 payout.
-   - exactly 6 matches: tier 6 payout.
-4. A selected 49 counts as a normal hit if 49 is drawn. It does not replace
-   any of the other selected values. Since jackpot draws contain 49 and only
-   five normal values, the matching count must be calculated against the
-   complete result set, not by assuming every draw consists of six values in
-   the range 1–48.
-5. Show the selected numbers, stake, tier table, and maximum gross payout in
-   the confirmation receipt. Lock the tier schedule/version when accepting
-   the ticket.
+1. The player selects 1–6 **distinct** values from 1–49.
+2. Lucky Six wins only when every selected value occurs in the six-ball
+   result. Bet Zero wins only when none of the selected values occurs. A
+   partially matching set loses in either game.
+3. Order does not matter. Number 49 is allowed in both games.
+4. Each pick set is one separate ticket, not a combination of single-number
+   bets. Rainbow also uses independent selection bets and never multiplies
+   their odds into a parlay.
+5. Show the selected numbers, exact winning condition, stake, odds, and
+   maximum gross payout in the review receipt. Lock the odds/version and the
+   pick-rule version at acceptance.
+6. With the 50-credit stake limit and 1,000,000-credit gross-payout cap, reject
+   any pick set whose minimum legal stake would exceed the cap. Do not alter
+   its odds to force acceptance.
 
-This is a **single ticket with a tiered prize schedule**, not four separate
-single-outcome bets. Do not calculate each tier's payout independently as
-`(1 - margin) / P(tier)`: doing that for all four tiers would multiply the
-expected return budget by four.
+The former six-number Pick Six tier schedule is retained only to settle
+tickets accepted before the new pick markets replaced it; new tickets cannot
+use that legacy market.
 
 ## 4. Odds model
 
@@ -250,6 +249,10 @@ under this margin policy: its raw decimal price is below 1.00.
 
 ### 4.6 Pick-six tier probability and prize schedule
 
+**Legacy settlement reference only.** New Pick Six tier tickets are disabled.
+This schedule remains so previously accepted tickets can finish settlement
+with the rules under which they were accepted.
+
 The match probabilities depend on whether the six-number ticket contains 49.
 At the current draw probability, the exact tier probabilities are:
 
@@ -306,6 +309,53 @@ frequent lower-tier rewards against rare high-tier prizes, then verify the
 expected return and maximum liability mathematically. The probabilities alone
 do not determine a unique prize table.
 
+### 4.7 Exact Lucky Six and Bet Zero pick odds
+
+The new number-pick markets price one ticket based on pick count `n` and
+whether 49 is among the picks. Let `p` be the jackpot probability (currently
+0.02). With `C(a,b) = 0` when `b < 0` or `b > a`:
+
+**Lucky Six — all picks appear**
+
+```text
+No selected 49:
+  (1 - p) × C(48 - n, 6 - n) / C(48, 6)
+  + p × C(48 - n, 5 - n) / C(48, 5)
+
+Selected 49:
+  p × C(49 - n, 6 - n) / C(48, 5)
+```
+
+**Bet Zero — all picks are absent**
+
+```text
+No selected 49:
+  (1 - p) × C(48 - n, 6) / C(48, 6)
+  + p × C(48 - n, 5) / C(48, 5)
+
+Selected 49:
+  (1 - p) × C(49 - n, 6) / C(48, 6)
+```
+
+Each probability is priced independently using the 8% margin, rounded down to
+cents, with the current 1.01 minimum. Example quotes at `p = 0.02`:
+
+| Picks | Lucky Six, excludes 49 | Lucky Six, includes 49 | Bet Zero, excludes 49 | Bet Zero, includes 49 |
+|---:|---:|---:|---:|---:|
+| 1 | 7.38 | 46.00 | 1.05 | 1.01 |
+| 2 | 69.64 | 441.60 | 1.20 | 1.07 |
+| 3 | 803.65 | 5,188.80 | 1.38 | 1.22 |
+| 4 | 12,095.51 | 79,561.60 | 1.59 | 1.41 |
+| 5 | 267,003.33 | 1,790,136.00 | 1.84 | 1.63 |
+| 6 | 11,520,194.93 | 78,765,984.00 | 2.14 | 1.88 |
+
+These are model illustrations, not guaranteed live quotes; current selections
+are versioned in the API. With the 1,000,000-credit gross payout cap, some
+Lucky Six combinations cannot be placed even at a one-credit stake. The API
+publishes each selection's maximum stake after applying the cap. A maximum
+stake below one means the pick set is unavailable. The UI must show that
+limitation instead of reducing odds to fit.
+
 ## 5. Probability calculation requirements
 
 Use the actual draw distribution, not historical frequencies or rough
@@ -325,11 +375,16 @@ percentages:
 - For exact RED/BLUE/GREEN count `c`, use
   `C(16, c) × C(32, k - c) / C(48, k)` for each branch's `k` normal balls
   (6 without the jackpot, 5 with it), then weight by the branch probability.
-- For a pick-six ticket containing `m` normal numbers (`m = 6` if it excludes
-  49, otherwise `m = 5`), compute normal-branch matches with the hypergeometric
-  distribution for drawing six normal balls. For the jackpot branch, compute
-  matches among five normal balls and add one guaranteed hit if the ticket
-  contains 49. Weight both distributions by `1 - p` and `p`.
+- For the new Lucky Six and Bet Zero picks, calculate the exact all-hit or
+  all-absent probability with the formulas in Section 4.7, separately for
+  normal-only picks and picks containing 49. The user's pick count determines
+  `n`; no partial matches win.
+- For a legacy six-number tier ticket containing `m` normal numbers (`m = 6`
+  if it excludes 49, otherwise `m = 5`), compute normal-branch matches with
+  the hypergeometric distribution for drawing six normal balls. For the
+  jackpot branch, compute matches among five normal balls and add one
+  guaranteed hit if the ticket contains 49. Weight both distributions by
+  `1 - p` and `p`.
 - Verify every exhaustive outcome family sums to probability 1 within a defined
   numeric tolerance.
 - Keep the draw probability `p`, rules version, and pricing version associated

@@ -201,18 +201,34 @@ async function main() {
       { value: 'BLACK:1', label: 'Exactly 1 BLACK' },
     ],
   );
+  const pickNumberSelections = [1, 2, 3, 4, 5, 6].flatMap((count) => [
+    { value: `${count}:0`, label: `${count} picks (without 49)` },
+    { value: `${count}:1`, label: `${count} picks (includes 49)` },
+  ]);
+  await seedMarket(
+    'PICK_NUMBERS_APPEAR',
+    'Selected numbers appear',
+    'All selected numbers must appear in the six-ball draw.',
+    pickNumberSelections,
+  );
+  await seedMarket(
+    'PICK_NUMBERS_ABSENT',
+    'Selected numbers do not appear',
+    'All selected numbers must be absent from the six-ball draw.',
+    pickNumberSelections,
+  );
   await prisma.market.upsert({
     where: { type: 'PICK_SIX' },
     update: {
       title: 'Pick six numbers',
-      description: 'Pick six numbers; win a tier by matching at least three.',
-      active: true,
+      description: 'Legacy ticket type retained only for settlement of accepted tickets.',
+      active: false,
     },
     create: {
       type: 'PICK_SIX',
       title: 'Pick six numbers',
-      description: 'Pick six numbers; win a tier by matching at least three.',
-      active: true,
+      description: 'Legacy ticket type retained only for settlement of accepted tickets.',
+      active: false,
     },
   });
 

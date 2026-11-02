@@ -39,9 +39,13 @@ export type MarketType =
   | 'COLOR_COUNT'
   | 'TOTAL_SUM'
   | 'SUM_HIGH_MID_LOW'
+  | 'SUM_OVER_UNDER'
   | 'SUM_ODD_EVEN'
   | 'FIRST_BALL_COLOR'
-  | 'LAST_BALL_COLOR';
+  | 'LAST_BALL_COLOR'
+  | 'PICK_SIX'
+  | 'PICK_NUMBERS_APPEAR'
+  | 'PICK_NUMBERS_ABSENT';
 
 export type RealtimeEvent =
   | 'draw.created'

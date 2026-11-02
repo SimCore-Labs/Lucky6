@@ -1,4 +1,7 @@
 export const PICK_SIX_SCHEDULE_VERSION = 1;
+export const PICK_NUMBERS_RULE_VERSION = 1;
+export const PICK_NUMBERS_APPEAR_MARKET = 'PICK_NUMBERS_APPEAR';
+export const PICK_NUMBERS_ABSENT_MARKET = 'PICK_NUMBERS_ABSENT';
 export const MAX_BET_STAKE = 50n;
 export const MAX_GROSS_PAYOUT = 1_000_000n;
 
@@ -8,6 +11,7 @@ export const PICK_SIX_TIER_MULTIPLIERS = {
 } as const;
 
 export interface MarketProbabilities {
+  jackpotProbability: number;
   individualNumber: number;
   blackJackpot: number;
   colorMajority: Record<string, number>;
@@ -198,6 +202,7 @@ export function calculateMarketProbabilities(
   );
 
   return {
+    jackpotProbability,
     individualNumber: ((1 - jackpotProbability) * 6 + jackpotProbability * 5) / 48,
     blackJackpot: jackpotProbability,
     colorMajority: Object.fromEntries(
@@ -227,6 +232,56 @@ export function probabilityForSelection(
   value: string,
   probabilities: MarketProbabilities,
 ): number | null {
+  if (
+    marketType === PICK_NUMBERS_APPEAR_MARKET ||
+    marketType === PICK_NUMBERS_ABSENT_MARKET
+  ) {
+    const match = /^([1-6]):([01])$/.exec(value);
+    if (!match) return null;
+
+    const count = Number(match[1]);
+    const includes49 = match[2] === '1';
+    const jackpotProbability = probabilities.jackpotProbability;
+    const normalTotal = combination(48, 6);
+    const jackpotTotal = combination(48, 5);
+
+    if (marketType === PICK_NUMBERS_APPEAR_MARKET) {
+      if (includes49) {
+        return (
+          (jackpotProbability *
+            combination(49 - count, 6 - count)) /
+          jackpotTotal
+        );
+      }
+
+      return (
+        ((1 - jackpotProbability) *
+          combination(48 - count, 6 - count)) /
+          normalTotal +
+        (jackpotProbability *
+          combination(48 - count, 5 - count)) /
+          jackpotTotal
+      );
+    }
+
+    if (includes49) {
+      return (
+        ((1 - jackpotProbability) *
+          combination(49 - count, 6)) /
+        normalTotal
+      );
+    }
+
+    return (
+      ((1 - jackpotProbability) *
+        combination(48 - count, 6)) /
+        normalTotal +
+      (jackpotProbability *
+        combination(48 - count, 5)) /
+        jackpotTotal
+    );
+  }
+
   if (marketType === 'INDIVIDUAL_NUMBER') {
     const number = Number(value);
     if (!Number.isInteger(number) || number < 1 || number > 49) return null;

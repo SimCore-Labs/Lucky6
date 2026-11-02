@@ -103,6 +103,7 @@ export interface MarketResponse {
     label: string;
     currentOdds: number;
     oddsVersion: number;
+    maxStake?: string;
   }[];
 }
 
@@ -222,6 +223,14 @@ export interface BetHistoryItem {
     winningTier: number | null;
     scheduleVersion: number;
   } | null;
+  pickNumberTicket?: {
+    marketType: string;
+    numbers: number[];
+    lockedOdds: string;
+    oddsVersion: number;
+    ruleVersion: number;
+    matchedCount: number | null;
+  } | null;
   settlement?: {
     status: string;
     payout: string;
@@ -285,6 +294,16 @@ export type CreateBetRequest =
       stake: number;
       idempotencyKey: string;
       numbers: number[];
+    }
+  | {
+      kind: 'PICK_NUMBERS';
+      drawId: string;
+      stake: number;
+      idempotencyKey: string;
+      marketType: 'PICK_NUMBERS_APPEAR' | 'PICK_NUMBERS_ABSENT';
+      selectionId: string;
+      oddsVersion: number;
+      numbers: number[];
     };
 
 export async function createAuthenticatedBet(payload: CreateBetRequest) {
@@ -298,6 +317,8 @@ export async function createAuthenticatedBet(payload: CreateBetRequest) {
     oddsVersion?: number;
     maximumGrossPayout?: string;
     numbers?: number[];
+    marketType?: string;
+    ruleVersion?: number;
     scheduleVersion?: number;
     tierMultipliers?: Record<number, number>;
   }>('/bets', {

@@ -1,38 +1,79 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMarkets } from '@/lib/api';
+import { useUiStore } from '@/store/ui/useUiStore';
 import styles from './lucky6.module.css';
+
+const EMPTY_NUMBERS: number[] = [];
 
 export function Lucky6({
   heading = 'LUCKY SIX',
-  instructions = 'Choose 6 numbers. Match 3 or more to win.',
+  instructions = 'Choose 1 to 6 numbers. Every selected number must appear.',
   idPrefix = 'lucky6',
+  marketType = 'PICK_NUMBERS_APPEAR',
 }: {
   heading?: string;
   instructions?: string;
   idPrefix?: string;
+  marketType?: 'PICK_NUMBERS_APPEAR' | 'PICK_NUMBERS_ABSENT';
 }) {
-  const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
+  const selectedBet = useUiStore((state) =>
+    state.selectedBets.find((bet) => bet.key === marketType),
+  );
+  const selectedNumbers = selectedBet?.numbers ?? EMPTY_NUMBERS;
+  const selectBet = useUiStore((state) => state.selectBet);
+  const removeBet = useUiStore((state) => state.removeBet);
   const marketsQuery = useQuery({
     queryKey: ['markets'],
     queryFn: ({ signal }) => getMarkets(signal),
   });
-  const pickSixMarket = marketsQuery.data?.find(
-    (market) => market.type === 'PICK_SIX',
+  const pickMarket = marketsQuery.data?.find(
+    (market) => market.type === marketType,
   );
-  const payoutTiers = selectedNumbers.includes(49)
-    ? pickSixMarket?.payoutTiers?.includes49
-    : pickSixMarket?.payoutTiers?.excludes49;
+  const pickSelection = pickMarket?.selections.find(
+    (selection) =>
+      selection.value ===
+      `${selectedNumbers.length}:${selectedNumbers.includes(49) ? '1' : '0'}`,
+  );
+  const maxStake = Number(pickSelection?.maxStake ?? pickMarket?.maxStake ?? 50);
 
   function toggleNumber(number: number) {
-    setSelectedNumbers((current) => {
-      if (current.includes(number)) {
-        return current.filter((selected) => selected !== number);
-      }
-      if (current.length === 6) return current;
-      return [...current, number];
+    const next = selectedNumbers.includes(number)
+    ? selectedNumbers.filter((selected) => selected !== number)
+    : selectedNumbers.length === 6
+      ? selectedNumbers
+      : [...selectedNumbers, number].sort((first, second) => first - second);
+    updateBet(next);
+  }
+
+  function updateBet(numbers: number[]) {
+    if (numbers.length === 0) {
+      removeBet(marketType);
+      return;
+    }
+    const selection = pickMarket?.selections.find(
+      (item) =>
+        item.value === `${numbers.length}:${numbers.includes(49) ? '1' : '0'}`,
+    );
+    if (!pickMarket || !selection) {
+      removeBet(marketType);
+      return;
+    }
+    selectBet({
+      key: marketType,
+      marketId: pickMarket.id,
+      marketType,
+      marketTitle: pickMarket.title,
+      selectionId: selection.id,
+      selectionValue: selection.value,
+      selectionLabel: `${numbers.length} number${numbers.length === 1 ? '' : 's'} ${
+        marketType === 'PICK_NUMBERS_APPEAR' ? 'to appear' : 'not to appear'
+      }${numbers.includes(49) ? ', including 49' : ''}`,
+      odds: selection.currentOdds,
+      oddsVersion: selection.oddsVersion,
+      maxStake: selection.maxStake ?? pickMarket.maxStake ?? '50',
+      numbers,
     });
   }
 
@@ -49,7 +90,8 @@ export function Lucky6({
         numbers[index],
       ];
     }
-    setSelectedNumbers(numbers.slice(0, 6).sort((first, second) => first - second));
+    const selection = numbers.slice(0, 6).sort((first, second) => first - second);
+    updateBet(selection);
   }
 
   return (
@@ -67,7 +109,7 @@ export function Lucky6({
         <div
           className={styles.numberGrid}
           role="group"
-          aria-label="Choose six numbers from 1 to 49"
+          aria-label="Choose one to six numbers from 1 to 49"
         >
           {Array.from({ length: 49 }, (_, index) => {
             const number = index + 1;
@@ -108,19 +150,33 @@ export function Lucky6({
           <p className={styles.oddsMessage} role="alert">
             Odds are unavailable right now.
           </p>
-        ) : !pickSixMarket?.payoutTiers ? (
+        ) : !pickMarket ? (
           <p className={styles.oddsMessage}>
-            Lucky Six is not currently available.
+            {heading} is not currently available.
+          </p>
+        ) : selectedNumbers.length === 0 ? (
+          <p className={styles.oddsMessage}>
+            Select 1–6 numbers to see the odds.
+          </p>
+        ) : maxStake < 1 ? (
+          <p className={styles.oddsMessage}>
+            This pick cannot be placed within the current payout limit.
           </p>
         ) : (
-          <dl className={styles.oddsList}>
-            {[3, 4, 5, 6].map((matches) => (
-              <div className={styles.oddsRow} key={matches}>
-                <dt>{matches} Balls</dt>
-                <dd>{payoutTiers?.[matches] ?? '—'}×</dd>
-              </div>
-            ))}
-          </dl>
+          <div className={styles.oddsList}>
+            <div className={styles.oddsRow}>
+              <span>
+                All {selectedNumbers.length}{' '}
+                {marketType === 'PICK_NUMBERS_APPEAR'
+                  ? 'appear'
+                  : 'stay absent'}
+              </span>
+              <strong>{pickSelection?.currentOdds ?? '—'}×</strong>
+            </div>
+            <p className={styles.oddsMessage}>
+              Max stake {maxStake} credits
+            </p>
+          </div>
         )}
       </aside>
       <div className={styles.selectedBallsBox} aria-label="Selected balls">
@@ -151,7 +207,9 @@ export function Lucky6({
           className={styles.clearButton}
           type="button"
           disabled={selectedNumbers.length === 0}
-          onClick={() => setSelectedNumbers([])}
+          onClick={() => {
+            removeBet(marketType);
+          }}
         >
           Clear Selection
         </button>

@@ -85,4 +85,68 @@ describe('PricingEngineService base probabilities', () => {
     expect(calculateDecimalOdds(0.02, 0.08)).toBe(46);
     expect(calculateDecimalOdds(0, 0.08)).toBeNull();
   });
+
+  it('prices exact number-appearance and number-absence picks by count and 49', () => {
+    const probabilities = calculateMarketProbabilities(0.02);
+
+    expect(
+      probabilityForSelection('PICK_NUMBERS_APPEAR', '1:0', probabilities),
+    ).toBeCloseTo(0.1245833333, 10);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_APPEAR', '1:1', probabilities),
+    ).toBe(0.02);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_APPEAR', '6:0', probabilities),
+    ).toBeCloseTo(7.98597597e-8, 15);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_APPEAR', '6:1', probabilities),
+    ).toBeCloseTo(1.16801689e-8, 15);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_ABSENT', '1:0', probabilities),
+    ).toBeCloseTo(0.8754166667, 10);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_ABSENT', '1:1', probabilities),
+    ).toBeCloseTo(0.98, 10);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_ABSENT', '6:0', probabilities),
+    ).toBeCloseTo(0.4288631556, 10);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_ABSENT', '6:1', probabilities),
+    ).toBeCloseTo(0.4868613517, 10);
+    expect(
+      probabilityForSelection('PICK_NUMBERS_APPEAR', '0:0', probabilities),
+    ).toBeNull();
+    expect(
+      probabilityForSelection('PICK_NUMBERS_ABSENT', '7:0', probabilities),
+    ).toBeNull();
+    expect(
+      probabilityForSelection('PICK_NUMBERS_APPEAR', '3:2', probabilities),
+    ).toBeNull();
+  });
+
+  it('rounds number-pick odds down and applies the minimum decimal odds', () => {
+    const probabilities = calculateMarketProbabilities(0.02);
+    const oneAbsent = probabilityForSelection(
+      'PICK_NUMBERS_ABSENT',
+      '1:0',
+      probabilities,
+    );
+    const sixAbsent = probabilityForSelection(
+      'PICK_NUMBERS_ABSENT',
+      '6:0',
+      probabilities,
+    );
+    const jackpotAbsent = probabilityForSelection(
+      'PICK_NUMBERS_ABSENT',
+      '1:1',
+      probabilities,
+    );
+
+    expect(oneAbsent).not.toBeNull();
+    expect(sixAbsent).not.toBeNull();
+    expect(jackpotAbsent).not.toBeNull();
+    expect(calculateDecimalOdds(oneAbsent ?? 0, 0.08)).toBe(1.05);
+    expect(calculateDecimalOdds(sixAbsent ?? 0, 0.08)).toBe(2.14);
+    expect(calculateDecimalOdds(jackpotAbsent ?? 0, 0.08)).toBe(1.01);
+  });
 });

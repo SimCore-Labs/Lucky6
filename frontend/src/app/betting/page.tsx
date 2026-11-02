@@ -11,6 +11,7 @@ import { Lucky6 } from './Lucky6';
 import { OddEven } from './OddEven';
 import { Rainbow } from './Rainbow';
 import { TotalColor } from './TotalColor';
+import { useUiStore } from '@/store/ui/useUiStore';
 import styles from './page.module.css';
 
 const games = [
@@ -26,6 +27,7 @@ type GameId = (typeof games)[number]['id'];
 
 export default function BettingPage() {
   const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
+  const clearBets = useUiStore((state) => state.clearBets);
 
   return (
     <div className={styles.page}>
@@ -44,7 +46,10 @@ export default function BettingPage() {
                   type="button"
                   key={game.id}
                   aria-pressed={isSelected}
-                  onClick={() => setSelectedGame(game.id)}
+                  onClick={() => {
+                    if (selectedGame !== game.id) clearBets();
+                    setSelectedGame(game.id);
+                  }}
                 >
                   <Image
                     className={styles.sectionLogo}

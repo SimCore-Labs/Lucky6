@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMarkets } from '@/lib/api';
+import { useUiStore } from '@/store/ui/useUiStore';
 import styles from './rainbow.module.css';
 
 const colors = [
@@ -13,7 +13,11 @@ const colors = [
 const counts = [0, 2, 3, 4, 5, 6] as const;
 
 export function Rainbow() {
-  const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
+  const selectedBets = useUiStore((state) => state.selectedBets);
+  const selectedOutcomes = selectedBets
+    .filter((bet) => bet.marketType === 'COLOR_COUNT')
+    .map((bet) => bet.selectionValue);
+  const selectBet = useUiStore((state) => state.selectBet);
   const marketsQuery = useQuery({
     queryKey: ['markets'],
     queryFn: ({ signal }) => getMarkets(signal),
@@ -77,7 +81,7 @@ export function Rainbow() {
                       />
                     );
                   }
-                  const isSelected = selectedOutcome === selection.value;
+                  const isSelected = selectedOutcomes.includes(selection.value);
 
                   return (
                     <button
@@ -88,7 +92,27 @@ export function Rainbow() {
                       key={selection.id}
                       aria-label={`Select exactly ${count} ${color.label.toLowerCase()} balls`}
                       aria-pressed={isSelected}
-                      onClick={() => setSelectedOutcome(selection.value)}
+                      onClick={() => {
+                        if (!colorCountMarket) return;
+                        selectBet(
+                          {
+                            key: selection.id,
+                            marketId: colorCountMarket.id,
+                            marketType: colorCountMarket.type,
+                            marketTitle: colorCountMarket.title,
+                            selectionId: selection.id,
+                            selectionValue: selection.value,
+                            selectionLabel: selection.label,
+                            odds: selection.currentOdds,
+                            oddsVersion: selection.oddsVersion,
+                            maxStake:
+                              selection.maxStake ??
+                              colorCountMarket.maxStake ??
+                              '50',
+                          },
+                          true,
+                        );
+                      }}
                     >
                       {count}
                     </button>
@@ -147,7 +171,8 @@ export function Rainbow() {
                       return (
                         <td
                           className={
-                            selection?.value === selectedOutcome
+                            selection !== undefined &&
+                            selectedOutcomes.includes(selection.value)
                               ? styles.selectedOdds
                               : undefined
                           }

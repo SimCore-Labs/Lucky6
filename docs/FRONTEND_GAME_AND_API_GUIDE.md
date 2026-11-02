@@ -187,16 +187,19 @@ sum, and winning colour (`RED`, `BLUE`, `GREEN`, or `DRAW` for a tie).
 
 The statistics include the five most frequent numbers, the five most delayed
 numbers, the maximum delay in draw numbers, winning-colour counts, and the
-sum-band counts. Lucky6 sum bands are `LOW` 15–120, `MID` 121–170, and `HIGH`
-171–280. Delay is the difference between the latest completed draw number and
+sum-band counts. Lucky6 sum bands are `LOW` 21–120, `MID` 121–170, and `HIGH`
+171–279. Delay is the difference between the latest completed draw number and
 the number's last completed draw number.
 
 ### `GET /markets`
 
 Returns active markets and their selections. Each selection includes
-`id`, `value`, `label`, `currentOdds`, and `oddsVersion`. Odds are converted to
-JSON numbers by the API. Treat this response as the market board source of
-truth; avoid hardcoding IDs or odds in the UI.
+`id`, `value`, `label`, `currentOdds`, `oddsVersion`, and `maxStake`.
+`maxStake` is constrained by both the 50-credit stake limit and
+1,000,000-credit gross-payout cap; zero means the selection cannot be placed
+even at a one-credit stake. Markets include the same global limits. Odds are
+JSON numbers. Treat this response as the market board source of truth; do not
+hardcode IDs or prices.
 
 ```json
 [
@@ -205,72 +208,92 @@ truth; avoid hardcoding IDs or odds in the UI.
     "type": "FIRST_BALL_COLOR",
     "title": "First Ball Color",
     "description": "Predict the color of the first drawn ball.",
+    "maxStake": "50",
+    "maxGrossPayout": "1000000",
     "selections": [
       {
         "id": "selection-uuid",
         "value": "BLUE",
         "label": "Blue (1–12)",
-        "currentOdds": 4,
-        "oddsVersion": 1
+        "currentOdds": 2.76,
+        "oddsVersion": 1,
+        "maxStake": "50"
       }
     ]
   }
 ]
 ```
 
-The API's response currently omits `active` on the market and `marketId` on
-each selection, although the shared `MarketDto` interfaces include those
-fields. Prefer the actual HTTP response until the implementation and DTO are
-reconciled.
+`PICK_NUMBERS_APPEAR` and `PICK_NUMBERS_ABSENT` markets contain selections
+whose `value` is `<pick-count>:<includes-49-flag>` (for example `3:0` or
+`3:1`). This gives the exact model-based quote for the set size and whether it
+includes 49. The actual ticket numbers are still sent separately and the API
+validates that the selection matches the ticket.
 
 ### `POST /bets`
 
-Request body as validated by the current controller:
+The endpoint requires a valid HTTP-only wallet session. Normal selection bet:
 
 ```json
 {
-  "walletId": "wallet-uuid",
   "drawId": "draw-uuid",
   "selectionId": "selection-uuid",
-  "stake": "10",
-  "idempotencyKey": "unique-client-generated-key"
+  "kind": "SELECTION",
+  "stake": 10,
+  "idempotencyKey": "unique-client-generated-uuid",
+  "oddsVersion": 1
 }
 ```
 
-- `walletId`, `drawId`, and `selectionId` must be UUIDs.
-- `stake` accepts a positive number or string, but it is converted to `BigInt`.
-  Send a whole-number string such as `"10"`; decimal values are not SIM
-  fractions and may fail during conversion.
-- `idempotencyKey` is optional. If provided, it is unique per wallet. Reuse the
-  same key when retrying the same request; do not generate a new key for a
-  network retry.
-- The server transaction checks that the draw exists, is `OPEN`, and has not
-  reached `closeAt`; checks the wallet and balance; loads the selection's
-  active odds; debits the stake; creates a `BET_STAKE` ledger entry when a
-  ledger account exists; and creates the bet with the odds locked at request
-  time.
-- A normal response contains the bet ID, wallet ID, draw ID, stake as a string,
-  status, creation timestamp, and locked selection odds.
-- An idempotent replay returns the existing bet's ID, status, stake, and key.
-  The replay response is therefore smaller than the first response.
-- Betting can fail with validation, not-found, closed-draw, or insufficient
-  balance errors. Keep the UI selection and entered stake visible so the user
-  can understand or retry an error.
+Lucky Six and Bet Zero ticket:
 
-The actual endpoint requires `walletId`; the shared `PlaceBetDto` interface
-does not include it. Use the controller's payload until that mismatch is fixed.
+```json
+{
+  "drawId": "draw-uuid",
+  "kind": "PICK_NUMBERS",
+  "marketType": "PICK_NUMBERS_APPEAR",
+  "selectionId": "selection-uuid",
+  "oddsVersion": 1,
+  "numbers": [7, 18, 49],
+  "stake": 10,
+  "idempotencyKey": "unique-client-generated-uuid"
+}
+```
 
-### `GET /wallet/:walletId/balance`
+`marketType` is `PICK_NUMBERS_APPEAR` (all picked numbers must appear) or
+`PICK_NUMBERS_ABSENT` (all picked numbers must be absent). Pick 1–6 unique
+numbers in the range 1–49. Any partial match loses. For ordinary selections,
+send `kind: "SELECTION"` and omit `marketType` and `numbers`.
+
+The server derives the wallet from the session; never send a `walletId`.
+`stake` is a positive whole-number credit amount, capped at 50. The server
+checks the open draw, active selection and odds version, wallet balance, and
+gross payout limit in one transaction. Each Rainbow selection uses its own
+`SELECTION` request and idempotency key; never combine or multiply its odds.
+Re-use the same idempotency key for retries of the same request.
+
+The UI must preserve the failed wager for review/retry, but clear selected
+wagers when the player switches games. A stale-odds conflict requires fetching
+the updated market quote and explicit user reconfirmation.
+
+### `GET /wallet/me`
 
 Returns:
 
 ```json
-{ "walletId": "wallet-uuid", "balance": "1000" }
+{
+  "walletId": "wallet-uuid",
+  "address": "base58-solana-public-key",
+  "balance": "1000"
+}
 ```
 
 Wallet balances and stakes are Prisma `BigInt` values stored by SQLite/libSQL as
 decimal strings. Keep them as strings or parse with `BigInt` for exact
 arithmetic; do not assume they are JavaScript-safe integers.
+
+The legacy `GET /wallet/:walletId/balance` route is also session guarded and
+returns not found for a wallet other than the authenticated wallet.
 
 ### `POST /auth/nonce` and `POST /auth/verify`
 
@@ -306,20 +329,11 @@ wallets receive 1000 SIM and a `BONUS_CREDIT` ledger entry. Success returns
 `authenticated`, `address`, `walletId`, and string `balance`, and attempts to
 set an HTTP-only `session` cookie with a 24-hour expiry.
 
-Current integration limitations:
-
-- The bet and balance controllers do not validate that the caller owns the
-  supplied wallet ID or require the session cookie.
-- The frontend `fetchJson` helper does not set `credentials: 'include'`.
-- For a cross-site Vercel frontend/API cookie session, CORS, cookie
-  `SameSite`/`Secure` attributes, and frontend credentials must be aligned.
-- The challenge is marked used before the signature is verified. An invalid
-  verification attempt consumes that nonce.
-- The verifier accepts signatures in hex, base64, or base58; wallet SDK output
-  may need explicit encoding before sending.
-
-Authentication should not be presented as a complete protected-account
-system until these integration gaps are addressed.
+The bet and balance routes use `SessionGuard`; the wallet comes from the
+authenticated session rather than a caller-supplied wallet ID.
+`frontend/src/lib/api.ts` sends requests with `credentials: 'include'`.
+For cross-origin browser use, the API CORS origin and cookie attributes still
+need to match the deployed frontend's host and HTTPS configuration.
 
 ## 5. Markets, pricing, and settlement behavior
 
@@ -364,9 +378,11 @@ are omitted from `GET /markets`.
 | `SUM_ODD_EVEN` | Total sum has the selected parity |
 | `FIRST_BALL_COLOR` | The ball with `orderIndex === 0` has the selected color |
 
-Unrecognized types/values lose (return `false`). In particular, despite the
-type names in the shared contracts, no evaluator case currently handles
-`COLOR_COUNT`, `TOTAL_SUM`, or `LAST_BALL_COLOR`.
+Unrecognized types/values lose (return `false`). The current evaluator also supports `SUM_OVER_UNDER` and `COLOR_COUNT`.
+`PICK_NUMBERS_APPEAR` and `PICK_NUMBERS_ABSENT` are evaluated through the
+number-pick ticket path; all picks must respectively appear or be absent.
+`PICK_SIX` remains supported only for previously accepted tier tickets.
+`TOTAL_SUM` and `LAST_BALL_COLOR` are not currently evaluated.
 
 ### Settlement and payout
 
@@ -375,9 +391,11 @@ polls every five seconds for draws in `RESULT_READY` or `SETTLEMENT_PENDING`.
 For each accepted bet:
 
 1. It rechecks that the bet is still `ACCEPTED` and has no settlement.
-2. Every selection on that bet must win; odds are multiplied together.
-3. A winning payout is `floor(stake × product(locked odds))`. The wallet is
-   credited and a `BET_WIN` ledger entry is written.
+2. A normal selection bet contains exactly one selection. Number-pick and
+   legacy Pick Six tickets use their persisted ticket rules.
+3. A winning payout is `floor(stake × locked odds)` for a single-selection or
+   number-pick ticket. The legacy Pick Six ticket uses its locked tier
+   multiplier. The wallet is credited and a `BET_WIN` ledger entry is written.
 4. A losing bet gets `LOST` status and a zero-payout settlement record.
 5. The draw is marked `SETTLED` after its accepted bets have been processed.
 
@@ -385,19 +403,13 @@ The transaction and unique settlement-per-bet constraint provide a degree of
 idempotency for retries. The in-process `isSettling` flag is not a distributed
 lock if multiple settlement processes are run.
 
-### Important seeded-market mismatch
+### Deployment status
 
-`backend/prisma/seed.ts` currently seeds `FIRST_BALL_COLOR` and
-`SUM_OVER_UNDER`, including `OVER`/`UNDER` selections at 122.5. The settlement
-evaluator has no `SUM_OVER_UNDER` case, so those seeded over/under selections
-currently lose regardless of the draw. The shared `MarketType` union also
-does not declare `SUM_OVER_UNDER`. The seed's comments/initial odds and the
-pricing service's theoretical probabilities are not a substitute for runtime
-settlement rules.
-
-Before enabling real betting UI for a market, align its seeded type, shared
-contract type, probability logic, and settlement evaluation, then cover the
-winning boundaries with tests.
+The new number-pick markets and `PickNumberTicket` table are code changes until
+their migration is applied and the backend is deployed. The production API
+must expose both number-pick markets before the updated frontend can place
+those bets. Follow `docs/DEVELOPMENT_HANDOFF.md`; do not treat a frontend build
+or a successful health check as proof that the database schema is migrated.
 
 ## 6. Realtime events
 

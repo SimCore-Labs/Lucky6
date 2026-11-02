@@ -18,13 +18,16 @@ import { Prisma } from '../generated/prisma/client.js';
 import {
   MAX_BET_STAKE,
   MAX_GROSS_PAYOUT,
+  PICK_NUMBERS_ABSENT_MARKET,
+  PICK_NUMBERS_APPEAR_MARKET,
+  PICK_NUMBERS_RULE_VERSION,
   PICK_SIX_SCHEDULE_VERSION,
   PICK_SIX_TIER_MULTIPLIERS,
 } from '../pricing/market-pricing.js';
 import { z } from 'zod';
 
 const betBaseSchema = z.object({
-  kind: z.enum(['SELECTION', 'PICK_SIX']),
+  kind: z.enum(['SELECTION', 'PICK_SIX', 'PICK_NUMBERS']),
   drawId: z.string().uuid(),
   stake: z.union([
     z.number().int().positive().safe(),
@@ -41,9 +44,20 @@ const pickSixBetSchema = betBaseSchema.extend({
   kind: z.literal('PICK_SIX'),
   numbers: z.array(z.number().int().min(1).max(49)).length(6),
 });
+const pickNumbersBetSchema = betBaseSchema.extend({
+  kind: z.literal('PICK_NUMBERS'),
+  marketType: z.enum([
+    PICK_NUMBERS_APPEAR_MARKET,
+    PICK_NUMBERS_ABSENT_MARKET,
+  ]),
+  selectionId: z.string().uuid(),
+  oddsVersion: z.number().int().positive(),
+  numbers: z.array(z.number().int().min(1).max(49)).min(1).max(6),
+});
 const placeBetSchema = z.discriminatedUnion('kind', [
   selectionBetSchema,
   pickSixBetSchema,
+  pickNumbersBetSchema,
 ]);
 
 function payoutForOdds(stake: bigint, oddsValue: string): bigint {
@@ -52,6 +66,18 @@ function payoutForOdds(stake: bigint, oddsValue: string): bigint {
   const oddsHundredths =
     BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
   return (stake * oddsHundredths) / 100n;
+}
+
+function maximumStakeForOdds(oddsValue: string): bigint {
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(oddsValue);
+  if (!match) throw new BadRequestException('Market odds are invalid.');
+  const oddsHundredths =
+    BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
+  const maximumStake =
+    ((MAX_GROSS_PAYOUT + 1n) * 100n - 1n) / oddsHundredths;
+  return maximumStake < MAX_BET_STAKE
+    ? maximumStake
+    : MAX_BET_STAKE;
 }
 
 const completedDrawStatuses = ['RESULT_READY', 'SETTLEMENT_PENDING', 'SETTLED'] as const;
@@ -295,6 +321,8 @@ export class GameController {
       type: market.type,
       title: market.title,
       description: market.description,
+      maxStake: MAX_BET_STAKE.toString(),
+      maxGrossPayout: MAX_GROSS_PAYOUT.toString(),
       selections: market.selections
         .filter((selection) => selection.odds.length > 0)
         .map((selection) => ({
@@ -303,6 +331,9 @@ export class GameController {
           label: selection.label,
           currentOdds: Number(selection.odds[0].oddsValue),
           oddsVersion: selection.odds[0].version,
+          maxStake: maximumStakeForOdds(
+            selection.odds[0].oddsValue.toString(),
+          ).toString(),
         })),
       }));
 
@@ -345,11 +376,11 @@ export class GameController {
       );
     }
     if (
-      input.kind === 'PICK_SIX' &&
+      (input.kind === 'PICK_SIX' || input.kind === 'PICK_NUMBERS') &&
       new Set(input.numbers).size !== input.numbers.length
     ) {
       throw new BadRequestException(
-        'Pick-six numbers must be distinct.',
+        'Picked numbers must be distinct.',
       );
     }
 
@@ -358,18 +389,34 @@ export class GameController {
     const checkExistingBet = async () => {
       const existingBet = await this.prisma.bet.findUnique({
         where: { walletId_idempotencyKey: { walletId, idempotencyKey } },
-        include: { selections: true, pickSixTicket: true },
+        include: {
+          selections: true,
+          pickSixTicket: true,
+          pickNumberTicket: true,
+        },
       });
       if (!existingBet) return null;
-      const payloadMatches =
+      let payloadMatches =
         existingBet.drawId === drawId &&
-        existingBet.stake === stakeBigInt &&
-        (input.kind === 'PICK_SIX'
-          ? existingBet.pickSixTicket?.numbers ===
-            JSON.stringify(input.numbers.slice().sort((a, b) => a - b))
-          : existingBet.selections.length === 1 &&
-            existingBet.selections[0].selectionId ===
-              input.selectionId);
+        existingBet.stake === stakeBigInt;
+      if (payloadMatches) {
+        if (input.kind === 'PICK_SIX') {
+          payloadMatches =
+            existingBet.pickSixTicket?.numbers ===
+            JSON.stringify(input.numbers.slice().sort((a, b) => a - b));
+        } else if (input.kind === 'PICK_NUMBERS') {
+          payloadMatches =
+            existingBet.pickNumberTicket?.marketType === input.marketType &&
+            existingBet.pickNumberTicket.numbers ===
+              JSON.stringify(input.numbers.slice().sort((a, b) => a - b)) &&
+            existingBet.selections.length === 1 &&
+            existingBet.selections[0].selectionId === input.selectionId;
+        } else {
+          payloadMatches =
+            existingBet.selections.length === 1 &&
+            existingBet.selections[0].selectionId === input.selectionId;
+        }
+      }
       if (!payloadMatches) {
         throw new ConflictException(
           'This idempotency key was already used for a different bet.',
@@ -451,6 +498,83 @@ export class GameController {
             scheduleVersion: PICK_SIX_SCHEDULE_VERSION,
             tierMultipliers,
           };
+        } else if (input.kind === 'PICK_NUMBERS') {
+          const numbers = input.numbers
+            .slice()
+            .sort((first, second) => first - second);
+          const selection = await tx.marketSelection.findUnique({
+            where: { id: input.selectionId },
+            include: {
+              market: true,
+              odds: {
+                where: { active: true },
+                orderBy: { version: 'desc' },
+                take: 1,
+              },
+            },
+          });
+          const activeOdds = selection?.odds[0];
+          const expectedSelectionValue =
+            `${numbers.length}:${numbers.includes(49) ? '1' : '0'}`;
+          if (
+            !selection ||
+            selection.market.type !== input.marketType ||
+            selection.value !== expectedSelectionValue ||
+            !selection.market.active ||
+            !activeOdds
+          ) {
+            throw new BadRequestException(
+              'The selected numbers do not match an active pick market.',
+            );
+          }
+          if (activeOdds.version !== input.oddsVersion) {
+            throw new ConflictException({
+              message: 'Market odds changed; review and confirm the new price.',
+              currentOdds: activeOdds.oddsValue.toString(),
+              oddsVersion: activeOdds.version,
+            });
+          }
+          const potentialPayout = payoutForOdds(
+            stakeBigInt,
+            activeOdds.oddsValue.toString(),
+          );
+          if (potentialPayout > MAX_GROSS_PAYOUT) {
+            throw new BadRequestException(
+              'This selection exceeds the current payout limit at the chosen stake.',
+            );
+          }
+          betCreateData = {
+            wallet: { connect: { id: walletId } },
+            draw: { connect: { id: drawId } },
+            stake: stakeBigInt,
+            idempotencyKey,
+            status: 'ACCEPTED',
+            selections: {
+              create: {
+                selection: { connect: { id: selection.id } },
+                lockedOdds: activeOdds.oddsValue,
+              },
+            },
+            pickNumberTicket: {
+              create: {
+                marketType: input.marketType,
+                numbers: JSON.stringify(numbers),
+                lockedOdds: activeOdds.oddsValue,
+                oddsVersion: activeOdds.version,
+                ruleVersion: PICK_NUMBERS_RULE_VERSION,
+              },
+            },
+          };
+          betResponseDetails = {
+            marketType: input.marketType,
+            numbers,
+            selectionId: selection.id,
+            selectionLabel: selection.label,
+            lockedOdds: activeOdds.oddsValue.toString(),
+            oddsVersion: activeOdds.version,
+            ruleVersion: PICK_NUMBERS_RULE_VERSION,
+            maximumGrossPayout: potentialPayout.toString(),
+          };
         } else {
           const selection = await tx.marketSelection.findUnique({
             where: { id: input.selectionId },
@@ -510,7 +634,11 @@ export class GameController {
 
         const bet = await tx.bet.create({
           data: betCreateData,
-          include: { selections: true, pickSixTicket: true },
+          include: {
+            selections: true,
+            pickSixTicket: true,
+            pickNumberTicket: true,
+          },
         });
         const ledgerAccount = await tx.ledgerAccount.upsert({
           where: { walletId },
@@ -594,6 +722,7 @@ export class GameController {
           },
         },
         pickSixTicket: true,
+        pickNumberTicket: true,
         settlement: true,
       },
     });
@@ -624,6 +753,16 @@ export class GameController {
             matchedCount: bet.pickSixTicket.matchedCount,
             winningTier: bet.pickSixTicket.winningTier,
             scheduleVersion: bet.pickSixTicket.scheduleVersion,
+          }
+        : null,
+      pickNumberTicket: bet.pickNumberTicket
+        ? {
+            marketType: bet.pickNumberTicket.marketType,
+            numbers: JSON.parse(bet.pickNumberTicket.numbers),
+            lockedOdds: bet.pickNumberTicket.lockedOdds.toString(),
+            oddsVersion: bet.pickNumberTicket.oddsVersion,
+            ruleVersion: bet.pickNumberTicket.ruleVersion,
+            matchedCount: bet.pickNumberTicket.matchedCount,
           }
         : null,
     }));

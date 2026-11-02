@@ -119,6 +119,7 @@ export class SettlementService implements OnModuleInit {
           },
         },
         pickSixTicket: true,
+        pickNumberTicket: true,
         wallet: true,
       },
     });
@@ -146,7 +147,38 @@ export class SettlementService implements OnModuleInit {
         let payoutAmount = 0n;
         let betWon = false;
 
-        if (bet.pickSixTicket) {
+        if (bet.pickNumberTicket) {
+          const selectedNumbers: unknown = JSON.parse(
+            bet.pickNumberTicket.numbers,
+          );
+          if (
+            !Array.isArray(selectedNumbers) ||
+            !selectedNumbers.every(
+              (number): number is number => typeof number === 'number',
+            )
+          ) {
+            throw new Error(
+              `Number-pick ticket ${bet.pickNumberTicket.id} is invalid.`,
+            );
+          }
+          const result = this.evaluator.evaluateNumberPick(
+            bet.pickNumberTicket.marketType,
+            selectedNumbers,
+            drawData,
+          );
+          matchedCount = result.matchedCount;
+          betWon = result.won;
+          if (betWon) {
+            payoutAmount = calculateSingleSelectionPayout(
+              bet.stake,
+              bet.pickNumberTicket.lockedOdds.toString(),
+            );
+          }
+          await tx.pickNumberTicket.update({
+            where: { id: bet.pickNumberTicket.id },
+            data: { matchedCount },
+          });
+        } else if (bet.pickSixTicket) {
           const selectedNumbers: unknown = JSON.parse(
             bet.pickSixTicket.numbers,
           );
@@ -192,7 +224,7 @@ export class SettlementService implements OnModuleInit {
         } else {
           if (bet.selections.length !== 1) {
             throw new Error(
-              `Bet ${bet.id} must have exactly one selection or one pick-six ticket.`,
+              `Bet ${bet.id} must have exactly one selection or one number-pick ticket.`,
             );
           }
           const [selection] = bet.selections;
