@@ -28,6 +28,8 @@
 
 .desktopNavigation {
   min-height: 48px;
+  justify-content: center;
+  gap: clamp(28px, 6vw, 72px);
   padding: 0 clamp(20px, 4vw, 56px);
   border-bottom: 1px solid #f3f4f6;
 }

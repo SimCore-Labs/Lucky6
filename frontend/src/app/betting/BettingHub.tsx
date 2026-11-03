@@ -1,8 +1,11 @@
 'use client';
 
 import ArrowBack from '@mui/icons-material/ArrowBack';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useGSAP } from '@gsap/react';
 import Link from 'next/link';
+import Image from 'next/image';
+import gsap from 'gsap';
 import type {
   BetHistoryItem,
   WalletProfileResponse,
@@ -12,6 +15,8 @@ import { useUiStore } from '@/store/ui/useUiStore';
 import { WalletSpinner } from './WalletSpinner';
 import { BettingInitiator } from './BettingInitiator';
 import styles from './betting-hub.module.css';
+
+gsap.registerPlugin(useGSAP);
 
 type BetsTab = 'slip' | 'active' | 'settled';
 
@@ -26,12 +31,37 @@ interface BettingHubProps {
   transactions: WalletTransaction[];
   transactionsLoading: boolean;
   transactionsError: Error | null;
+  transactionsHasMore: boolean;
+  transactionsLoadingMore: boolean;
+  transactionsMoreError: Error | null;
+  onLoadMoreTransactions: () => void;
   onPlay: () => void;
 }
 
-function formatCredits(value: string) {
-  if (!/^-?\d+$/.test(value)) return '—';
-  return BigInt(value).toLocaleString('en-US');
+function CreditAmount({
+  value,
+  signed = false,
+  className,
+}: {
+  value: string;
+  signed?: boolean;
+  className?: string;
+}) {
+  if (!/^-?\d+$/.test(value)) {
+    return <span className={className}>—</span>;
+  }
+
+  const amount = BigInt(value);
+  const formattedAmount = amount.toLocaleString('en-US');
+
+  return (
+    <span className={`${styles.creditAmount} ${className ?? ''}`}>
+      <Image src="/dice.png" alt="" width={20} height={20} />
+      <span>
+        {signed && amount > BigInt(0) ? `+${formattedAmount}` : formattedAmount}
+      </span>
+    </span>
+  );
 }
 
 function formatDate(value: string) {
@@ -127,12 +157,14 @@ function BetDetails({
     <section className={styles.panel} aria-labelledby="bet-detail-title">
       <button className={styles.backButton} type="button" onClick={onBack}>
         <ArrowBack fontSize="small" />
-        <span>All bets</span>
+        <span>Bets</span>
       </button>
       <div className={styles.detailHeading}>
+        <h1 className={styles.visuallyHidden} id="bet-detail-title">
+          Bet details
+        </h1>
         <div>
           <p className={styles.eyebrow}>Draw #{bet.drawNumber}</p>
-          <h1 id="bet-detail-title">Bet ticket</h1>
         </div>
         <span className={`${styles.status} ${styles[`status${bet.status}`] ?? ''}`}>
           {statusLabel(bet.status)}
@@ -145,7 +177,7 @@ function BetDetails({
         </div>
         <div>
           <dt>Stake</dt>
-          <dd>{formatCredits(bet.stake)} credits</dd>
+          <dd><CreditAmount value={bet.stake} /></dd>
         </div>
         {bet.pickSixTicket && (
           <div>
@@ -166,7 +198,7 @@ function BetDetails({
         {bet.settlement && (
           <div>
             <dt>Return</dt>
-            <dd>{formatCredits(bet.settlement.payout)} credits</dd>
+            <dd><CreditAmount value={bet.settlement.payout} /></dd>
           </div>
         )}
       </dl>
@@ -220,7 +252,9 @@ function BetList({
           </span>
           <strong className={styles.ticketSelection}>{betLabel(bet)}</strong>
           <span className={styles.ticketBottom}>
-            <span>Stake {formatCredits(bet.stake)}</span>
+            <span className={styles.ticketStake}>
+              Stake <CreditAmount value={bet.stake} />
+            </span>
             <span>{formatDate(bet.createdAt)}</span>
           </span>
         </button>
@@ -240,6 +274,10 @@ export function BettingHub({
   transactions,
   transactionsLoading,
   transactionsError,
+  transactionsHasMore,
+  transactionsLoadingMore,
+  transactionsMoreError,
+  onLoadMoreTransactions,
   onPlay,
 }: BettingHubProps) {
   const selectedBets = useUiStore((state) => state.selectedBets);
@@ -248,12 +286,51 @@ export function BettingHub({
     selectedBets.length > 0 ? 'slip' : 'active',
   );
   const [selectedBet, setSelectedBet] = useState<BetHistoryItem | null>(null);
+  const transactionsRef = useRef<HTMLElement>(null);
+  const animatedTransactionCount = useRef(0);
+
+  useGSAP(
+    () => {
+      if (
+        !transactionsRef.current ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        return;
+      }
+
+      const rows = gsap.utils.toArray<HTMLElement>(
+        `.${styles.transaction}`,
+        transactionsRef.current,
+      );
+      const newRows = rows.slice(animatedTransactionCount.current);
+      animatedTransactionCount.current = rows.length;
+
+      gsap.fromTo(
+        newRows,
+        { autoAlpha: 0, y: 8 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.32,
+          stagger: 0.045,
+          ease: 'power2.out',
+        },
+      );
+    },
+    {
+      scope: transactionsRef,
+      dependencies: [transactions.length, section],
+      revertOnUpdate: true,
+    },
+  );
 
   if (section === 'profile') {
     if (!wallet) {
       return (
         <section className={styles.pageSection} aria-labelledby="profile-title">
-          <h1 id="profile-title">Profile</h1>
+          <h1 className={styles.visuallyHidden} id="profile-title">
+            Profile
+          </h1>
           <WalletRequired
             loading={walletLoading}
             error={walletError}
@@ -265,18 +342,26 @@ export function BettingHub({
 
     return (
       <section className={styles.pageSection} aria-labelledby="profile-title">
-        <h1 id="profile-title">Profile</h1>
+        <h1 className={styles.visuallyHidden} id="profile-title">
+          Profile
+        </h1>
         <section className={styles.profileCard} aria-label="Wallet">
-          <span className={styles.eyebrow}>Wallet balance</span>
-          <strong>{formatCredits(wallet.balance)} credits</strong>
-          <span className={styles.walletAddress}>
-            {wallet.address.slice(0, 6)}…{wallet.address.slice(-6)}
-          </span>
+          <div className={styles.profileBalance}>
+            <span className={styles.eyebrow}>Wallet balance</span>
+            <strong><CreditAmount value={wallet.balance} /></strong>
+            <span className={styles.walletAddress}>
+              {wallet.address.slice(0, 6)}…{wallet.address.slice(-6)}
+            </span>
+          </div>
           <Link className={styles.secondaryButton} href="/top-up">
             Top up
           </Link>
         </section>
-        <section className={styles.transactions} aria-labelledby="transactions-title">
+        <section
+          className={styles.transactions}
+          aria-labelledby="transactions-title"
+          ref={transactionsRef}
+        >
           <h2 id="transactions-title">Transactions</h2>
           {transactionsLoading ? (
             <div className={styles.state} role="status">
@@ -289,28 +374,62 @@ export function BettingHub({
           ) : transactions.length === 0 ? (
             <p className={styles.emptyState}>No transactions yet.</p>
           ) : (
-            <ul className={styles.transactionList}>
-              {transactions.map((transaction) => {
-                const amount = /^-?\d+$/.test(transaction.amount)
-                  ? BigInt(transaction.amount)
-                  : null;
-                return (
-                  <li className={styles.transaction} key={transaction.id}>
-                    <span className={styles.transactionCopy}>
-                      <strong>{transactionLabel(transaction.type)}</strong>
-                      <time dateTime={transaction.createdAt}>
-                        {formatDate(transaction.createdAt)}
-                      </time>
-                    </span>
-                    <strong className={styles.transactionAmount}>
-                      {amount === null
-                        ? '—'
-                        : `${amount > BigInt(0) ? '+' : ''}${amount.toLocaleString('en-US')}`}
-                    </strong>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <ul className={styles.transactionList}>
+                {transactions.map((transaction, index) => {
+                  const amount = /^-?\d+$/.test(transaction.amount)
+                    ? BigInt(transaction.amount)
+                    : null;
+                  return (
+                    <li
+                      className={styles.transaction}
+                      key={`${transaction.id}-${index}`}
+                    >
+                      <span className={styles.transactionCopy}>
+                        <strong>{transactionLabel(transaction.type)}</strong>
+                        <time dateTime={transaction.createdAt}>
+                          {formatDate(transaction.createdAt)}
+                        </time>
+                      </span>
+                      <CreditAmount
+                        value={transaction.amount}
+                        signed
+                        className={`${styles.transactionAmount} ${
+                          amount === null
+                            ? ''
+                            : amount > BigInt(0)
+                              ? styles.positiveAmount
+                              : amount < BigInt(0)
+                                ? styles.negativeAmount
+                                : ''
+                        }`}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+              {transactionsMoreError && (
+                <p className={styles.error} role="alert">
+                  Could not load more transactions: {transactionsMoreError.message}
+                </p>
+              )}
+              {transactionsHasMore && (
+                <button
+                  className={styles.loadMoreButton}
+                  type="button"
+                  disabled={transactionsLoadingMore}
+                  onClick={onLoadMoreTransactions}
+                >
+                  {transactionsLoadingMore ? (
+                    <WalletSpinner label="Loading transactions" size="small" />
+                  ) : transactionsMoreError ? (
+                    'Try again'
+                  ) : (
+                    'Load more'
+                  )}
+                </button>
+              )}
+            </>
           )}
         </section>
       </section>
@@ -331,12 +450,9 @@ export function BettingHub({
 
   return (
     <section className={styles.pageSection} aria-labelledby="bets-title">
-      <div className={styles.pageHeading}>
-        <h1 id="bets-title">Bets</h1>
-        <button className={styles.textButton} type="button" onClick={onPlay}>
-          Play
-        </button>
-      </div>
+      <h1 className={styles.visuallyHidden} id="bets-title">
+        Bets
+      </h1>
       <div className={styles.tabs} role="tablist" aria-label="Bet categories">
         {(
           [

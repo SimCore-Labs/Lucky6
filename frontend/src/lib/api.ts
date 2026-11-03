@@ -267,14 +267,40 @@ export interface WalletTransaction {
   createdAt: string;
 }
 
+export interface WalletTransactionsPage {
+  entries: WalletTransaction[];
+  nextCursor: string | null;
+}
+
 export async function getWalletMe(signal?: AbortSignal) {
   return fetchJson<WalletProfileResponse>('/wallet/me', { signal });
 }
 
-export async function getWalletTransactions(signal?: AbortSignal) {
-  return fetchJson<WalletTransaction[]>('/wallet/transactions?limit=50', {
-    signal,
+export async function getWalletTransactions(
+  options: { limit?: number; cursor?: string | null; signal?: AbortSignal } = {},
+) {
+  const params = new URLSearchParams({
+    limit: String(options.limit ?? 10),
   });
+  if (options.cursor) params.set('cursor', options.cursor);
+  const response = await fetchJson<
+    WalletTransactionsPage | WalletTransaction[]
+  >(
+    `/wallet/transactions?${params.toString()}`,
+    { signal: options.signal },
+  );
+  if (Array.isArray(response)) {
+    return { entries: response, nextCursor: null };
+  }
+  if (
+    response === null ||
+    typeof response !== 'object' ||
+    !Array.isArray(response.entries) ||
+    (response.nextCursor !== null && typeof response.nextCursor !== 'string')
+  ) {
+    throw new Error('The wallet transactions response is invalid.');
+  }
+  return response;
 }
 
 export async function getPaymentQuote(payload: { credits: number }) {

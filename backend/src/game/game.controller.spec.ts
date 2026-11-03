@@ -246,6 +246,13 @@ describe('GameController current draw', () => {
             reference: 'BET_bet-id',
             createdAt,
           },
+          {
+            id: 'older-entry-id',
+            amount: 25n,
+            type: 'CREDIT_PURCHASE',
+            reference: null,
+            createdAt: new Date('2026-10-14T11:00:00.000Z'),
+          },
         ],
       });
       const prisma = {
@@ -256,22 +263,53 @@ describe('GameController current draw', () => {
       await expect(
         controller.getMyWalletTransactions(
           { authenticatedWallet: { id: 'wallet-id' } } as never,
+          '1',
         ),
-      ).resolves.toEqual([
-        {
-          id: 'ledger-entry-id',
-          amount: '-10',
-          type: 'BET_STAKE',
-          reference: 'BET_bet-id',
-          createdAt: createdAt.toISOString(),
-        },
-      ]);
+      ).resolves.toEqual({
+        entries: [
+          {
+            id: 'ledger-entry-id',
+            amount: '-10',
+            type: 'BET_STAKE',
+            reference: 'BET_bet-id',
+            createdAt: createdAt.toISOString(),
+          },
+        ],
+        nextCursor: 'ledger-entry-id',
+      });
       expect(findUnique).toHaveBeenCalledWith({
         where: { walletId: 'wallet-id' },
         select: {
           entries: {
-            orderBy: { createdAt: 'desc' },
-            take: 50,
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: 2,
+          },
+        },
+      });
+    });
+
+    it('uses the cursor to continue the transaction history', async () => {
+      const findUnique = vi.fn().mockResolvedValue({ entries: [] });
+      const prisma = {
+        ledgerAccount: { findUnique },
+      } as unknown as PrismaService;
+      const controller = new GameController(prisma);
+
+      await expect(
+        controller.getMyWalletTransactions(
+          { authenticatedWallet: { id: 'wallet-id' } } as never,
+          '10',
+          'previous-entry-id',
+        ),
+      ).resolves.toEqual({ entries: [], nextCursor: null });
+      expect(findUnique).toHaveBeenCalledWith({
+        where: { walletId: 'wallet-id' },
+        select: {
+          entries: {
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: 11,
+            cursor: { id: 'previous-entry-id' },
+            skip: 1,
           },
         },
       });

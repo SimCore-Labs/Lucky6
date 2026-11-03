@@ -234,7 +234,7 @@ export class AuthController {
       'HttpOnly',
       production ? 'SameSite=None' : 'SameSite=Lax',
       `Max-Age=${24 * 60 * 60}`,
-      ...(production ? ['Secure'] : []),
+      ...(production ? ['Secure', 'Partitioned'] : []),
     ];
     reply.header('Set-Cookie', cookieOptions.join('; '));
 
@@ -276,7 +276,7 @@ export class AuthController {
         'HttpOnly',
         secure ? 'SameSite=None' : 'SameSite=Lax',
         'Max-Age=0',
-        ...(secure ? ['Secure'] : []),
+        ...(secure ? ['Secure', 'Partitioned'] : []),
       ].join('; '),
     );
     return { authenticated: false };

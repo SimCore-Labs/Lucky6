@@ -98,7 +98,9 @@ describe('AuthController', () => {
     );
     expect(reply.header).toHaveBeenCalledWith(
       'Set-Cookie',
-      expect.stringMatching(/^session=[a-f0-9]{64};.*HttpOnly.*Secure/),
+      expect.stringMatching(
+        /^session=[a-f0-9]{64};.*HttpOnly.*SameSite=None.*Secure.*Partitioned/,
+      ),
     );
   });
 
@@ -180,5 +182,32 @@ describe('AuthController', () => {
       ),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(consumeChallenge).not.toHaveBeenCalled();
+  });
+
+  it('clears the partitioned production session cookie on logout', async () => {
+    const deleteSession = vi.fn().mockResolvedValue({ count: 1 });
+    const prisma = {
+      walletSession: { deleteMany: deleteSession },
+    } as unknown as PrismaService;
+    const config = {
+      get: (key: string) => (key === 'NODE_ENV' ? 'production' : undefined),
+    } as ConfigService;
+    const controller = new AuthController(prisma, config);
+    const reply = { header: vi.fn() };
+
+    await expect(
+      controller.logout(
+        { sessionTokenHash: 'session-hash' } as never,
+        reply as never,
+      ),
+    ).resolves.toEqual({ authenticated: false });
+
+    expect(deleteSession).toHaveBeenCalledWith({
+      where: { tokenHash: 'session-hash' },
+    });
+    expect(reply.header).toHaveBeenCalledWith(
+      'Set-Cookie',
+      'session=; Path=/; HttpOnly; SameSite=None; Max-Age=0; Secure; Partitioned',
+    );
   });
 });

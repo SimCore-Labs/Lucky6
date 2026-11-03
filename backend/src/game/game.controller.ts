@@ -671,29 +671,40 @@ export class GameController {
   async getMyWalletTransactions(
     @Req() request: AuthenticatedRequest,
     @Query('limit') rawLimit?: string,
+    @Query('cursor') cursor?: string,
   ) {
-    const limit = rawLimit === undefined ? 50 : Number(rawLimit);
+    const limit = rawLimit === undefined ? 10 : Number(rawLimit);
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
       throw new BadRequestException('Limit must be an integer between 1 and 50.');
+    }
+    if (cursor !== undefined && (cursor.length === 0 || cursor.length > 128)) {
+      throw new BadRequestException('Invalid transaction cursor.');
     }
 
     const account = await this.prisma.ledgerAccount.findUnique({
       where: { walletId: request.authenticatedWallet.id },
       select: {
         entries: {
-          orderBy: { createdAt: 'desc' },
-          take: limit,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: limit + 1,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         },
       },
     });
 
-    return (account?.entries ?? []).map((entry) => ({
-      id: entry.id,
-      amount: entry.amount.toString(),
-      type: entry.type,
-      reference: entry.reference,
-      createdAt: entry.createdAt.toISOString(),
-    }));
+    const entries = account?.entries ?? [];
+    const hasMore = entries.length > limit;
+    const pageEntries = hasMore ? entries.slice(0, limit) : entries;
+    return {
+      entries: pageEntries.map((entry) => ({
+        id: entry.id,
+        amount: entry.amount.toString(),
+        type: entry.type,
+        reference: entry.reference,
+        createdAt: entry.createdAt.toISOString(),
+      })),
+      nextCursor: hasMore ? pageEntries.at(-1)?.id ?? null : null,
+    };
   }
 
   @Get('wallet/:walletId/balance')

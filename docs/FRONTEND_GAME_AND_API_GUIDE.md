@@ -297,10 +297,12 @@ arithmetic; do not assume they are JavaScript-safe integers.
 
 ### `GET /wallet/transactions`
 
-Requires the wallet session cookie and returns up to 50 newest ledger entries
-for the authenticated wallet. Each entry contains `id`, decimal-string `amount`,
-`type`, nullable `reference`, and ISO `createdAt`. The `amount` is signed:
-stakes are negative and credits or payouts are positive.
+Requires the wallet session cookie and returns a page of ledger entries for the
+authenticated wallet. `limit` defaults to 10 and accepts values from 1 to 50.
+Pass the previous response's `nextCursor` as `cursor` to load the next page.
+The response contains `entries` and a nullable `nextCursor`. Each entry contains
+`id`, decimal-string `amount`, `type`, nullable `reference`, and ISO `createdAt`.
+The `amount` is signed: stakes are negative and credits or payouts are positive.
 
 The legacy `GET /wallet/:walletId/balance` route is also session guarded and
 returns not found for a wallet other than the authenticated wallet.
@@ -348,8 +350,11 @@ set an HTTP-only `session` cookie with a 24-hour expiry.
 The bet and balance routes use `SessionGuard`; the wallet comes from the
 authenticated session rather than a caller-supplied wallet ID.
 `frontend/src/lib/api.ts` sends requests with `credentials: 'include'`.
-For cross-origin browser use, the API CORS origin and cookie attributes still
-need to match the deployed frontend's host and HTTPS configuration.
+Production uses `SameSite=None; Secure; Partitioned` for the session cookie so
+compatible browsers can send it in cross-site API requests while partitioning
+it to the frontend site (CHIPS). The API must allow the exact frontend origin
+with credentialed CORS. A same-site API proxy/domain is the more compatible
+fallback for browsers that block or do not support partitioned cookies.
 
 ## 5. Markets, pricing, and settlement behavior
 
@@ -633,7 +638,7 @@ production-facing wagering is enabled.
 | Medium | The realtime gateway broadcasts events globally; `wallet.updated` includes wallet ID and added-credit amount. | Connected clients receive wallet update metadata for other users. | Authorize sockets and emit wallet-private events only to the authenticated wallet's room. |
 | Medium | Payment verification performs Solana RPC work inside a database transaction and publishes `wallet.updated` before that transaction commits. | Slow RPC can hold a transaction open; a client can receive an update before the credited balance is committed. | Verify externally before opening the write transaction, then commit wallet/order/ledger atomically and publish after commit (prefer a transactional outbox). |
 | Medium | The auth verifier marks a challenge used before verifying the signature. | A malformed or invalid signature consumes the challenge and forces a fresh wallet prompt. | Verify first, then consume with an atomic conditional update to prevent replay races. |
-| Medium | The session cookie is `SameSite=Lax`, while the Vercel frontend and API are cross-site for browser fetches; the fetch helper also omits `credentials: 'include'`. | The browser will not reliably send the session cookie on frontend API requests, even after CORS is enabled. | Decide on cookie vs bearer-token auth, then align cookie SameSite/Secure settings, CORS credentials, and client fetch credentials. |
+| Medium | The Vercel frontend and API are cross-site; browser privacy settings or lack of partitioned-cookie support can still block the session cookie. | Signature verification can succeed, but protected requests then reach `SessionGuard` without a session cookie. | Production now sets a `SameSite=None; Secure; Partitioned` cookie and the frontend includes credentials; verify storage/transmission in target browsers and use a same-site API proxy/domain where CHIPS is unavailable. |
 | Low | Shared event names/payload interfaces differ from actual Redis/Socket.IO publications. | A typed frontend may listen for a declared event the server never emits. | Generate/validate publishers and consumers against the same event contracts. |
 
 The read-only `GET /draws/current` fix removes the most urgent engine/API

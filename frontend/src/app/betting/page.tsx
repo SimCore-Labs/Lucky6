@@ -3,7 +3,7 @@
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import WalletOutlined from '@mui/icons-material/WalletOutlined';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { useRef, useState } from 'react';
@@ -68,9 +68,12 @@ export default function BettingPage() {
     enabled: Boolean(walletQuery.data),
     staleTime: 15_000,
   });
-  const transactionsQuery = useQuery({
-    queryKey: ['wallet', 'transactions'],
-    queryFn: ({ signal }) => getWalletTransactions(signal),
+  const transactionsQuery = useInfiniteQuery({
+    queryKey: ['wallet', walletQuery.data?.walletId, 'transactions'],
+    queryFn: ({ signal, pageParam }) =>
+      getWalletTransactions({ signal, cursor: pageParam }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: section === 'profile' && Boolean(walletQuery.data),
   });
 
@@ -96,8 +99,6 @@ export default function BettingPage() {
 
   const activeBetCount =
     betsQuery.data?.filter((bet) => bet.status === 'ACCEPTED').length ?? 0;
-  const betIndicatorCount =
-    selectedBets.length > 0 ? selectedBets.length : activeBetCount;
   const navItems = [
     { id: 'play', label: 'Play', Icon: HomeOutlined },
     { id: 'bets', label: 'Bets', Icon: ReceiptLongOutlined },
@@ -124,8 +125,8 @@ export default function BettingPage() {
           >
             <Icon className={styles.navigationIcon} fontSize="small" />
             <span>{label}</span>
-            {id === 'bets' && betIndicatorCount > 0 && (
-              <span className={styles.navigationBadge}>{betIndicatorCount}</span>
+            {id === 'bets' && activeBetCount > 0 && (
+              <span className={styles.navigationBadge}>{activeBetCount}</span>
             )}
           </button>
         ))}
@@ -216,9 +217,23 @@ export default function BettingPage() {
             bets={betsQuery.data ?? []}
             betsLoading={betsQuery.isPending}
             betsError={betsQuery.error}
-            transactions={transactionsQuery.data ?? []}
+            transactions={
+              transactionsQuery.data?.pages.flatMap((page) => page.entries) ?? []
+            }
             transactionsLoading={transactionsQuery.isPending}
-            transactionsError={transactionsQuery.error}
+            transactionsError={
+              transactionsQuery.isError && !transactionsQuery.data
+                ? transactionsQuery.error
+                : null
+            }
+            transactionsHasMore={transactionsQuery.hasNextPage}
+            transactionsLoadingMore={transactionsQuery.isFetchingNextPage}
+            transactionsMoreError={
+              transactionsQuery.isFetchNextPageError
+                ? transactionsQuery.error
+                : null
+            }
+            onLoadMoreTransactions={() => void transactionsQuery.fetchNextPage()}
             onPlay={() => navigateTo('play')}
           />
         )}
@@ -236,8 +251,8 @@ export default function BettingPage() {
           >
             <span className={styles.navigationIconWrap}>
               <Icon className={styles.navigationIcon} fontSize="small" />
-              {id === 'bets' && betIndicatorCount > 0 && (
-                <span className={styles.navigationBadge}>{betIndicatorCount}</span>
+              {id === 'bets' && activeBetCount > 0 && (
+                <span className={styles.navigationBadge}>{activeBetCount}</span>
               )}
             </span>
             <span>{label}</span>
