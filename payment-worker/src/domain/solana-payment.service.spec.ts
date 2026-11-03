@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { inspectPaymentTransaction } from './solana-payment.service.js';
+import {
+  getExpectedGenesisHash,
+  inspectPaymentTransaction,
+} from './solana-payment.service.js';
 
 const payer = '11111111111111111111111111111111';
 const recipient = 'Vote111111111111111111111111111111111111111';
@@ -19,11 +22,12 @@ const expected = {
 
 function transaction(
   overrides: {
-    amount?: string;
+    amount?: string | number | bigint;
+    destination?: string;
     reference?: string;
     signer?: boolean;
     signature?: string;
-    blockTime?: number;
+    blockTime?: number | bigint;
     extraInstruction?: Record<string, unknown>;
   } = {},
 ) {
@@ -44,7 +48,7 @@ function transaction(
               type: 'transfer',
               info: {
                 source: payer,
-                destination: recipient,
+                destination: overrides.destination ?? recipient,
                 lamports: overrides.amount ?? '25000000',
               },
             },
@@ -62,6 +66,37 @@ test('verifies an exact transfer with the order reference and expected payer', (
   assert.equal(result.status, 'VERIFIED');
   assert.equal(result.verified, true);
   assert.equal(result.actualLamports, 25_000_000n);
+});
+
+test('verifies transactions whose Solana Kit block time is a bigint', () => {
+  const result = inspectPaymentTransaction(
+    transaction({ blockTime: BigInt(createdAt.getTime() / 1000 + 30) }),
+    signature,
+    expected,
+  );
+  assert.equal(result.status, 'VERIFIED');
+  assert.equal(result.actualLamports, 25_000_000n);
+});
+
+test('verifies transfer amounts returned by Solana Kit as bigint', () => {
+  const result = inspectPaymentTransaction(
+    transaction({ amount: 25_000_000n }),
+    signature,
+    expected,
+  );
+  assert.equal(result.status, 'VERIFIED');
+  assert.equal(result.actualLamports, 25_000_000n);
+});
+
+test('rejects a self-transfer that does not pay the treasury', () => {
+  const result = inspectPaymentTransaction(
+    transaction({ destination: payer }),
+    signature,
+    { ...expected, recipient: payer },
+  );
+  assert.equal(result.status, 'REQUIRES_REVIEW');
+  assert.equal(result.actualLamports, 0n);
+  assert.match(result.reason ?? '', /same wallet/);
 });
 
 test('does not verify a transaction that omits the unique order reference', () => {
@@ -114,4 +149,11 @@ test('rejects extra programs and signatures outside the order window', () => {
   );
   assert.equal(unexpectedProgram.status, 'REQUIRES_REVIEW');
   assert.equal(latePayment.status, 'EXPIRED');
+});
+
+test('uses the Devnet genesis hash when configured', () => {
+  assert.equal(
+    getExpectedGenesisHash('devnet'),
+    'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG',
+  );
 });

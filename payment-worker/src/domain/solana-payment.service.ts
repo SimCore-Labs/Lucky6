@@ -28,6 +28,19 @@ export interface VerificationResult {
 
 const PAYMENT_FINALIZATION_GRACE_MS = 2 * 60 * 1000;
 const MAINNET_GENESIS_HASH = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d';
+const DEVNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
+const SOLANA_NETWORKS = ['mainnet', 'devnet'] as const;
+type SolanaNetwork = (typeof SOLANA_NETWORKS)[number];
+
+export function getExpectedGenesisHash(
+  network = process.env.SOLANA_NETWORK ?? 'mainnet',
+): string {
+  if (network === 'devnet') return DEVNET_GENESIS_HASH;
+  if (network !== 'mainnet') {
+    throw new Error('SOLANA_NETWORK must be mainnet or devnet.');
+  }
+  return MAINNET_GENESIS_HASH;
+}
 
 type PaymentExpectation = {
   recipient: string;
@@ -101,7 +114,15 @@ export function inspectPaymentTransaction(
       'The Solana transaction failed during execution.',
     );
   }
-  if (typeof blockTime !== 'number' || !Number.isFinite(blockTime)) {
+  const blockTimeSeconds =
+    typeof blockTime === 'bigint' &&
+    Number.isSafeInteger(Number(blockTime))
+      ? Number(blockTime)
+      : blockTime;
+  if (
+    typeof blockTimeSeconds !== 'number' ||
+    !Number.isSafeInteger(blockTimeSeconds)
+  ) {
     return result(
       'PENDING',
       expectedSignature,
@@ -110,7 +131,7 @@ export function inspectPaymentTransaction(
     );
   }
 
-  const blockTimeMs = blockTime * 1000;
+  const blockTimeMs = blockTimeSeconds * 1000;
   if (
     blockTimeMs < expected.createdAt.getTime() - 30_000 ||
     blockTimeMs > expected.expiresAt.getTime() + PAYMENT_FINALIZATION_GRACE_MS
@@ -147,6 +168,14 @@ export function inspectPaymentTransaction(
       'The expected payer did not sign the transaction.',
     );
   }
+  if (expected.payer === expected.recipient) {
+    return result(
+      'REQUIRES_REVIEW',
+      expectedSignature,
+      0n,
+      'The payer and treasury are the same wallet, so no SOL was transferred.',
+    );
+  }
 
   const transfers: bigint[] = [];
   for (const rawInstruction of instructions) {
@@ -178,8 +207,11 @@ export function inspectPaymentTransaction(
 
     const amount = transfer.lamports;
     if (
-      (typeof amount !== 'string' && typeof amount !== 'number') ||
+      (typeof amount !== 'string' &&
+        typeof amount !== 'number' &&
+        typeof amount !== 'bigint') ||
       (typeof amount === 'number' && !Number.isSafeInteger(amount)) ||
+      (typeof amount === 'bigint' && amount < 0n) ||
       !/^\d+$/.test(String(amount))
     ) {
       return result(
@@ -224,41 +256,76 @@ export function inspectPaymentTransaction(
 @Injectable()
 export class SolanaPaymentService {
   private readonly logger = new Logger(SolanaPaymentService.name);
-  private readonly rpc: ReturnType<typeof createSolanaRpc>;
-  private verifiedRpcUrl = '';
-  private rpcVerifiedAt = 0;
+  private readonly rpc: Record<SolanaNetwork, ReturnType<typeof createSolanaRpc>>;
+  private readonly verifiedRpcAt = new Map<SolanaNetwork, number>();
 
   constructor() {
-    const rpcUrl =
-      process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
-    this.rpc = createSolanaRpc(rpcUrl);
-    this.logger.log(`Solana RPC initialized: ${rpcUrl}`);
+    const configuredNetwork = process.env.SOLANA_NETWORK ?? 'mainnet';
+    getExpectedGenesisHash(configuredNetwork);
+    const legacyRpcUrl = process.env.SOLANA_RPC_URL;
+    const mainnetRpcUrl =
+      process.env.SOLANA_MAINNET_RPC_URL ??
+      (configuredNetwork === 'mainnet' ? legacyRpcUrl : undefined) ??
+      'https://api.mainnet-beta.solana.com';
+    const devnetRpcUrl =
+      process.env.SOLANA_DEVNET_RPC_URL ??
+      (configuredNetwork === 'devnet' ? legacyRpcUrl : undefined) ??
+      'https://api.devnet.solana.com';
+    this.rpc = {
+      mainnet: createSolanaRpc(mainnetRpcUrl),
+      devnet: createSolanaRpc(devnetRpcUrl),
+    };
+    this.logger.log('Solana RPCs initialized for mainnet and devnet.');
   }
 
   async getRecentSignatures(reference: string): Promise<string[]> {
-    await this.assertMainnetRpc();
-    const signatures = await this.rpc
-      .getSignaturesForAddress(address(reference), {
-        commitment: 'confirmed',
-        limit: 20,
-      })
-      .send();
-    return signatures.map((item) => item.signature);
+    const results = await Promise.allSettled(
+      SOLANA_NETWORKS.map(async (network) => {
+        await this.assertRpcNetwork(network);
+        const signatures = await this.rpc[network]
+          .getSignaturesForAddress(address(reference), {
+            commitment: 'confirmed',
+            limit: 20,
+          })
+          .send();
+        return signatures.map((item) => item.signature);
+      }),
+    );
+    const successfulResults: string[][] = [];
+    const errors: string[] = [];
+    results.forEach((result, index) => {
+      const network = SOLANA_NETWORKS[index];
+      if (result.status === 'fulfilled') {
+        successfulResults.push(result.value);
+      } else {
+        const error = String(result.reason);
+        errors.push(`${network}: ${error}`);
+        this.logger.error(`Could not scan ${network} payment references: ${error}`);
+      }
+    });
+    if (successfulResults.length === 0) {
+      throw new Error(
+        `Could not scan payment references on either network: ${errors.join('; ')}`,
+      );
+    }
+    return [...new Set(successfulResults.flat())];
   }
 
-  private async assertMainnetRpc(): Promise<void> {
+  private async assertRpcNetwork(network: SolanaNetwork): Promise<void> {
+    const verifiedAt = this.verifiedRpcAt.get(network) ?? 0;
     if (
-      this.verifiedRpcUrl === (process.env.SOLANA_RPC_URL ?? '') &&
-      Date.now() - this.rpcVerifiedAt < 60_000
+      verifiedAt > 0 &&
+      Date.now() - verifiedAt < 60_000
     ) {
       return;
     }
-    const genesisHash = await this.rpc.getGenesisHash().send();
-    if (genesisHash !== MAINNET_GENESIS_HASH) {
-      throw new Error('Configured Solana RPC is not connected to mainnet.');
+    const genesisHash = await this.rpc[network].getGenesisHash().send();
+    if (genesisHash !== getExpectedGenesisHash(network)) {
+      throw new Error(
+        `Configured Solana RPC is not connected to ${network}.`,
+      );
     }
-    this.verifiedRpcUrl = process.env.SOLANA_RPC_URL ?? '';
-    this.rpcVerifiedAt = Date.now();
+    this.verifiedRpcAt.set(network, Date.now());
   }
 
   private cachedSolPriceUsd: number | null = null;
@@ -367,42 +434,65 @@ export class SolanaPaymentService {
       };
     }
 
-    try {
-      await this.assertMainnetRpc();
-      // @solana/kit v2 pattern: cast signature to the branded type, then .send()
-      const sig = toSignature(txSignature);
-
-      const tx = await this.rpc.getTransaction(sig, {
-        encoding: 'jsonParsed',
-        maxSupportedTransactionVersion: 0,
-        commitment: 'finalized',
-      }).send();
-
-      if (!tx) {
-        return result(
-          'PENDING',
-          txSignature,
-          0n,
-          'The transaction may still be pending finalization.',
-        );
+    const sig = toSignature(txSignature);
+    const verificationResults = await Promise.allSettled(
+      SOLANA_NETWORKS.map(async (network) => {
+        await this.assertRpcNetwork(network);
+        const tx = await this.rpc[network].getTransaction(sig, {
+          encoding: 'jsonParsed',
+          maxSupportedTransactionVersion: 0,
+          commitment: 'finalized',
+        }).send();
+        if (!tx) return null;
+        return {
+          network,
+          result: inspectPaymentTransaction(tx, txSignature, {
+            recipient: expectedRecipient,
+            reference: expectedReference,
+            payer: expectedPayer,
+            expectedLamports,
+            createdAt,
+            expiresAt,
+          }),
+        };
+      }),
+    );
+    const foundResults: Array<{
+      network: SolanaNetwork;
+      result: VerificationResult;
+    }> = [];
+    const errors: string[] = [];
+    verificationResults.forEach((verification, index) => {
+      const network = SOLANA_NETWORKS[index];
+      if (verification.status === 'fulfilled') {
+        if (verification.value) foundResults.push(verification.value);
+      } else {
+        const error = String(verification.reason);
+        errors.push(`${network}: ${error}`);
+        this.logger.error(`Could not verify transaction on ${network}: ${error}`);
       }
-      return inspectPaymentTransaction(tx, txSignature, {
-        recipient: expectedRecipient,
-        reference: expectedReference,
-        payer: expectedPayer,
-        expectedLamports,
-        createdAt,
-        expiresAt,
-      });
-    } catch (err) {
-      this.logger.error(`Could not verify transaction yet: ${String(err)}`);
-      return {
-        verified: false,
-        status: 'PENDING',
-        actualLamports: 0n,
-        signature: txSignature,
-        reason: String(err),
-      };
+    });
+    const verifiedResult = foundResults.find(
+      (candidate) => candidate.result.status === 'VERIFIED',
+    );
+    if (verifiedResult) {
+      this.logger.log(`Payment transaction verified on ${verifiedResult.network}.`);
+      return verifiedResult.result;
     }
+    const conclusiveResult = foundResults.find(
+      (candidate) => candidate.result.status !== 'PENDING',
+    );
+    if (conclusiveResult) return conclusiveResult.result;
+    if (foundResults.length > 0) {
+      return foundResults[0].result;
+    }
+    return result(
+      'PENDING',
+      txSignature,
+      0n,
+      errors.length > 0
+        ? `Transaction lookup is unavailable: ${errors.join('; ')}`
+        : 'The transaction may still be pending finalization.',
+    );
   }
 }
