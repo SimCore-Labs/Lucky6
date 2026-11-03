@@ -18,6 +18,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import {
   MAX_BET_STAKE,
   MAX_GROSS_PAYOUT,
+  MIN_BET_STAKE,
   PICK_NUMBERS_ABSENT_MARKET,
   PICK_NUMBERS_APPEAR_MARKET,
   PICK_NUMBERS_RULE_VERSION,
@@ -68,16 +69,8 @@ function payoutForOdds(stake: bigint, oddsValue: string): bigint {
   return (stake * oddsHundredths) / 100n;
 }
 
-function maximumStakeForOdds(oddsValue: string): bigint {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(oddsValue);
-  if (!match) throw new BadRequestException('Market odds are invalid.');
-  const oddsHundredths =
-    BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
-  const maximumStake =
-    ((MAX_GROSS_PAYOUT + 1n) * 100n - 1n) / oddsHundredths;
-  return maximumStake < MAX_BET_STAKE
-    ? maximumStake
-    : MAX_BET_STAKE;
+function cappedGrossPayout(payout: bigint): bigint {
+  return payout > MAX_GROSS_PAYOUT ? MAX_GROSS_PAYOUT : payout;
 }
 
 const completedDrawStatuses = ['RESULT_READY', 'SETTLEMENT_PENDING', 'SETTLED'] as const;
@@ -321,6 +314,7 @@ export class GameController {
       type: market.type,
       title: market.title,
       description: market.description,
+      minStake: MIN_BET_STAKE.toString(),
       maxStake: MAX_BET_STAKE.toString(),
       maxGrossPayout: MAX_GROSS_PAYOUT.toString(),
       selections: market.selections
@@ -331,9 +325,8 @@ export class GameController {
           label: selection.label,
           currentOdds: Number(selection.odds[0].oddsValue),
           oddsVersion: selection.odds[0].version,
-          maxStake: maximumStakeForOdds(
-            selection.odds[0].oddsValue.toString(),
-          ).toString(),
+          minStake: MIN_BET_STAKE.toString(),
+          maxStake: MAX_BET_STAKE.toString(),
         })),
       }));
 
@@ -348,6 +341,7 @@ export class GameController {
         description: 'Choose six distinct numbers; 3 or more matches win.',
         selections: [],
         payoutScheduleVersion: PICK_SIX_SCHEDULE_VERSION,
+        minStake: MIN_BET_STAKE.toString(),
         maxStake: MAX_BET_STAKE.toString(),
         maxGrossPayout: MAX_GROSS_PAYOUT.toString(),
         payoutTiers: {
@@ -370,9 +364,9 @@ export class GameController {
     }
     const input = parse.data;
     const stakeBigInt = BigInt(input.stake.toString());
-    if (stakeBigInt > MAX_BET_STAKE) {
+    if (stakeBigInt < MIN_BET_STAKE || stakeBigInt > MAX_BET_STAKE) {
       throw new BadRequestException(
-        `Stake cannot exceed ${MAX_BET_STAKE.toString()} credits.`,
+        `Stake must be between ${MIN_BET_STAKE.toString()} and ${MAX_BET_STAKE.toString()} credits.`,
       );
     }
     if (
@@ -471,12 +465,6 @@ export class GameController {
           const tierMultipliers = includes49
             ? PICK_SIX_TIER_MULTIPLIERS.includes49
             : PICK_SIX_TIER_MULTIPLIERS.excludes49;
-          const highestMultiplier = BigInt(tierMultipliers[6]);
-          if (stakeBigInt * highestMultiplier > MAX_GROSS_PAYOUT) {
-            throw new BadRequestException(
-              'Potential payout exceeds the current ticket payout limit.',
-            );
-          }
           betCreateData = {
             wallet: { connect: { id: walletId } },
             draw: { connect: { id: drawId } },
@@ -538,11 +526,6 @@ export class GameController {
             stakeBigInt,
             activeOdds.oddsValue.toString(),
           );
-          if (potentialPayout > MAX_GROSS_PAYOUT) {
-            throw new BadRequestException(
-              'This selection exceeds the current payout limit at the chosen stake.',
-            );
-          }
           betCreateData = {
             wallet: { connect: { id: walletId } },
             draw: { connect: { id: drawId } },
@@ -573,7 +556,7 @@ export class GameController {
             lockedOdds: activeOdds.oddsValue.toString(),
             oddsVersion: activeOdds.version,
             ruleVersion: PICK_NUMBERS_RULE_VERSION,
-            maximumGrossPayout: potentialPayout.toString(),
+            maximumGrossPayout: cappedGrossPayout(potentialPayout).toString(),
           };
         } else {
           const selection = await tx.marketSelection.findUnique({
@@ -604,11 +587,6 @@ export class GameController {
             stakeBigInt,
             activeOdds.oddsValue.toString(),
           );
-          if (potentialPayout > MAX_GROSS_PAYOUT) {
-            throw new BadRequestException(
-              'Potential payout exceeds the current bet payout limit.',
-            );
-          }
           betCreateData = {
             wallet: { connect: { id: walletId } },
             draw: { connect: { id: drawId } },
@@ -628,7 +606,7 @@ export class GameController {
             selectionLabel: selection.label,
             lockedOdds: activeOdds.oddsValue.toString(),
             oddsVersion: activeOdds.version,
-            maximumGrossPayout: potentialPayout.toString(),
+            maximumGrossPayout: cappedGrossPayout(potentialPayout).toString(),
           };
         }
 

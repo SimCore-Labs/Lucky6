@@ -4,10 +4,9 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ClientProvider } from '@solana/react';
-import { walletClient } from '@/lib/wallet';
 import { theme } from '@/theme/theme';
 import { UiStoreProvider } from '@/store/ui/useUiStore';
+import { SolanaNetworkProvider } from './SolanaNetworkProvider';
 
 export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
   const [queryClient] = useState(
@@ -27,11 +26,11 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
     <AppRouterCacheProvider>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <ClientProvider client={walletClient}>
-          <QueryClientProvider client={queryClient}>
-            <UiStoreProvider>{children}</UiStoreProvider>
-          </QueryClientProvider>
-        </ClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <UiStoreProvider>
+            <SolanaNetworkProvider>{children}</SolanaNetworkProvider>
+          </UiStoreProvider>
+        </QueryClientProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>
   );

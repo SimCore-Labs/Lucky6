@@ -32,6 +32,10 @@ export type LedgerEntryType =
 
 export type BallColor = 'RED' | 'BLUE' | 'GREEN' | 'BLACK';
 
+export const MIN_BET_STAKE = 10n;
+export const MAX_BET_STAKE = 999_999n;
+export const MAX_GROSS_PAYOUT = 1_000_000n;
+
 export type MarketType =
   | 'INDIVIDUAL_NUMBER'
   | 'BLACK_JACKPOT'

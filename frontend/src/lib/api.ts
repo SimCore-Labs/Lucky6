@@ -110,6 +110,7 @@ export interface MarketResponse {
   title: string;
   description: string;
   payoutScheduleVersion?: number;
+  minStake?: string;
   maxStake?: string;
   maxGrossPayout?: string;
   payoutTiers?: {
@@ -122,6 +123,7 @@ export interface MarketResponse {
     label: string;
     currentOdds: number;
     oddsVersion: number;
+    minStake?: string;
     maxStake?: string;
   }[];
 }

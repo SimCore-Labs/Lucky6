@@ -34,7 +34,7 @@ import {
   type PaymentOrderResponse,
   type WalletProfileResponse,
 } from '@/lib/api';
-import { walletClient } from '@/lib/wallet';
+import { useSolanaNetwork } from '@/providers/SolanaNetworkProvider';
 import { useUiStore } from '@/store/ui/useUiStore';
 import { PaymentDialog, type PaymentDialogMode } from './PaymentDialog';
 import styles from './page.module.css';
@@ -90,6 +90,7 @@ export default function TopUpPage() {
   const [statusError, setStatusError] = useState<string | null>(null);
   const idempotencyKeyRef = useRef<string | null>(null);
   const paymentCancelledRef = useRef(false);
+  const { network, walletClient } = useSolanaNetwork();
   const connectedWallet = useConnectedWallet(walletClient);
   const isWalletReady = useIsWalletReady(walletClient);
   const queryClient = useQueryClient();
@@ -250,10 +251,13 @@ export default function TopUpPage() {
 
     let signature: string;
     try {
-      const rpc = createSolanaRpc(
-        process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-          'https://api.mainnet-beta.solana.com',
-      );
+      const rpcUrl =
+        network === 'devnet'
+          ? process.env.NEXT_PUBLIC_SOLANA_DEVNET_RPC_URL ??
+            'https://api.devnet.solana.com'
+          : process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
+            'https://api.mainnet-beta.solana.com';
+      const rpc = createSolanaRpc(rpcUrl);
       const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
       const version = connectedWallet.supportedTransactionVersions.has('legacy')
         ? 'legacy'

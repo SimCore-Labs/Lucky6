@@ -2,7 +2,12 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from './prisma.service.js';
 import { RedisService } from './redis.service.js';
 import { SettlementEvaluatorService } from './domain/settlement-evaluator.service.js';
+import { MAX_GROSS_PAYOUT } from '@lucky-six/contracts';
 import type { BallColor } from '@lucky-six/contracts';
+
+function capGrossPayout(payout: bigint): bigint {
+  return payout > MAX_GROSS_PAYOUT ? MAX_GROSS_PAYOUT : payout;
+}
 
 function calculateSingleSelectionPayout(
   stake: bigint,
@@ -241,6 +246,10 @@ export class SettlementService implements OnModuleInit {
               selection.lockedOdds.toString(),
             );
           }
+        }
+
+        if (betWon) {
+          payoutAmount = capGrossPayout(payoutAmount);
         }
 
         if (betWon) {

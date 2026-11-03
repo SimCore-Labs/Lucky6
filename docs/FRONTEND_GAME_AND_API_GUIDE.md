@@ -195,12 +195,12 @@ the number's last completed draw number.
 ### `GET /markets`
 
 Returns active markets and their selections. Each selection includes
-`id`, `value`, `label`, `currentOdds`, `oddsVersion`, and `maxStake`.
-`maxStake` is constrained by both the 50-credit stake limit and
-1,000,000-credit gross-payout cap; zero means the selection cannot be placed
-even at a one-credit stake. Markets include the same global limits. Odds are
-JSON numbers. Treat this response as the market board source of truth; do not
-hardcode IDs or prices.
+`id`, `value`, `label`, `currentOdds`, `oddsVersion`, `minStake`, and
+`maxStake`. `maxStake` is constrained by the minimum 10-credit stake, the
+wallet balance, and the 1,000,000-credit gross-payout cap; zero means the
+selection cannot be placed even at a one-credit stake. Markets include the same
+global limits. Odds are JSON numbers. Treat this response as the market board
+source of truth; do not hardcode IDs or prices.
 
 ```json
 [
@@ -209,7 +209,8 @@ hardcode IDs or prices.
     "type": "FIRST_BALL_COLOR",
     "title": "First Ball Color",
     "description": "Predict the color of the first drawn ball.",
-    "maxStake": "50",
+    "minStake": "10",
+    "maxStake": "999999",
     "maxGrossPayout": "1000000",
     "selections": [
       {
@@ -218,7 +219,8 @@ hardcode IDs or prices.
         "label": "Blue (1–12)",
         "currentOdds": 2.76,
         "oddsVersion": 1,
-        "maxStake": "50"
+        "minStake": "10",
+        "maxStake": "999999"
       }
     ]
   }
@@ -267,9 +269,9 @@ numbers in the range 1–49. Any partial match loses. For ordinary selections,
 send `kind: "SELECTION"` and omit `marketType` and `numbers`.
 
 The server derives the wallet from the session; never send a `walletId`.
-`stake` is a positive whole-number credit amount, capped at 50. The server
-checks the open draw, active selection and odds version, wallet balance, and
-gross payout limit in one transaction. Each Rainbow selection uses its own
+`stake` is a positive whole-number credit amount with a minimum of 10. The
+server checks the open draw, active selection and odds version, wallet balance,
+and gross payout limit in one transaction. Each Rainbow selection uses its own
 `SELECTION` request and idempotency key; never combine or multiply its odds.
 Re-use the same idempotency key for retries of the same request.
 

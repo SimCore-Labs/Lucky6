@@ -36,7 +36,9 @@ export function Lucky6({
       selection.value ===
       `${selectedNumbers.length}:${selectedNumbers.includes(49) ? '1' : '0'}`,
   );
-  const maxStake = Number(pickSelection?.maxStake ?? pickMarket?.maxStake ?? 50);
+  const maxStake = Number(
+    pickSelection?.maxStake ?? pickMarket?.maxStake ?? 999_999,
+  );
   const pickOdds = Array.from({ length: 6 }, (_, index) => {
     const count = index + 1;
     return {
@@ -84,7 +86,9 @@ export function Lucky6({
       }${numbers.includes(49) ? ', including 49' : ''}`,
       odds: selection.currentOdds,
       oddsVersion: selection.oddsVersion,
-      maxStake: selection.maxStake ?? pickMarket.maxStake ?? '50',
+      minStake: selection.minStake ?? pickMarket.minStake ?? '10',
+      maxStake:
+        selection.maxStake ?? pickMarket.maxStake ?? '999999',
       numbers,
     });
   }
@@ -186,7 +190,10 @@ export function Lucky6({
                         selectedNumbers.length === count &&
                         selectedNumbers.includes(49) === includes49;
                       const isUnavailable =
-                        !selection || Number(selection.maxStake ?? pickMarket.maxStake ?? 50) < 1;
+                        !selection ||
+                        Number(
+                          selection.maxStake ?? pickMarket.maxStake ?? 999_999,
+                        ) < 10;
 
                       return (
                         <td
@@ -203,9 +210,9 @@ export function Lucky6({
                 ))}
               </tbody>
             </table>
-            {selectedNumbers.length > 0 && maxStake >= 1 && (
+            {selectedNumbers.length > 0 && maxStake >= 10 && (
               <p className={styles.oddsMessage}>
-                Max stake {maxStake} credits.
+                Stake 10–{maxStake.toLocaleString()} credits.
               </p>
             )}
           </>

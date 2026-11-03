@@ -156,7 +156,7 @@ export class PaymentService {
   }
 
   async createOrder(
-    wallet: { id: string },
+    wallet: { id: string; address: string },
     creditsValue: unknown,
     idempotencyKey: string,
   ) {
@@ -166,6 +166,11 @@ export class PaymentService {
     if (!validSolanaAddress(treasuryAddress)) {
       throw new ServiceUnavailableException(
         'SOL payment destination is not configured correctly.',
+      );
+    }
+    if (wallet.address === treasuryAddress) {
+      throw new BadRequestException(
+        'The connected wallet is also the payment destination. Configure a different treasury wallet for top-ups.',
       );
     }
     const credits = BigInt(quote.credits);

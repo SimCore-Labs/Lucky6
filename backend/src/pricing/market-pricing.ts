@@ -1,9 +1,15 @@
+import {
+  MAX_BET_STAKE,
+  MAX_GROSS_PAYOUT,
+  MIN_BET_STAKE,
+} from '@lucky-six/contracts';
+
+export { MAX_BET_STAKE, MAX_GROSS_PAYOUT, MIN_BET_STAKE } from '@lucky-six/contracts';
+
 export const PICK_SIX_SCHEDULE_VERSION = 1;
 export const PICK_NUMBERS_RULE_VERSION = 1;
 export const PICK_NUMBERS_APPEAR_MARKET = 'PICK_NUMBERS_APPEAR';
 export const PICK_NUMBERS_ABSENT_MARKET = 'PICK_NUMBERS_ABSENT';
-export const MAX_BET_STAKE = 50n;
-export const MAX_GROSS_PAYOUT = 1_000_000n;
 
 export const PICK_SIX_TIER_MULTIPLIERS = {
   excludes49: { 3: 31, 4: 250, 5: 4_000, 6: 5_000 },

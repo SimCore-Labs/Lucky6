@@ -108,7 +108,9 @@ export function TotalColor() {
                       selectionLabel: outcome.label,
                       odds: selection.currentOdds,
                       oddsVersion: selection.oddsVersion,
-                      maxStake: selection.maxStake ?? market.maxStake ?? '50',
+                      minStake: selection.minStake ?? market.minStake ?? '10',
+                      maxStake:
+                        selection.maxStake ?? market.maxStake ?? '999999',
                     });
                   }}
                 >

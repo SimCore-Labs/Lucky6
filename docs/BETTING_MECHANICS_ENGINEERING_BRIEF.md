@@ -25,10 +25,10 @@ The user has now confirmed the core selection rules:
    are not carried between games.
 
 The user confirmed 49 is eligible in both games and the one-million-credit cap
-must remain. The implementation therefore blocks combinations whose
-calculated gross payout exceeds the cap even at the one-credit minimum. The
-limitation is surfaced before confirmation; odds are not silently shortened to
-force a bet under the cap.
+must remain. The implementation therefore enforces the cap at settlement while
+still accepting valid bets whose theoretical payout exceeds the cap; the final
+awarded payout is trimmed to the cap instead of rejecting the ticket before it is
+accepted.
 
 ## Repository findings
 
@@ -73,8 +73,11 @@ independently after explicit confirmation.
 - The accepted request supports one `SELECTION`, legacy `PICK_SIX` tickets,
   and `PICK_NUMBERS` tickets with 1–6 distinct picks and an active market
   selection/odds version.
-- Stake is a whole-number credit amount, limited to 1–50 credits. The current
-  maximum gross payout is 1,000,000 credits. Bets have idempotency keys.
+- Stake is a whole-number credit amount with a 10-credit minimum. The
+  effective maximum is bounded by available wallet balance and the
+  1,000,000-credit gross payout cap; valid bets are accepted and settlement
+  caps the awarded payout rather than rejecting the ticket before it is
+  created. Bets have idempotency keys.
 - The server checks that the draw is open, validates active odds/version,
   debits balance atomically, records a ledger entry, and locks odds with the
   bet.
@@ -177,21 +180,11 @@ the win. Pricing depends both on pick count and whether 49 is selected, because
 | 6 | 0.0000080% | 11,520,194.93 | 0.0000012% | 78,765,984.00 |
 
 These are illustrative model odds, rounded down using the current pricing
-function. With the confirmed one-million-credit gross-payout cap, maximum
-stakes for the highest-pick cases are:
-
-| Picks | All normal picks: max stake | Includes 49: max stake |
-|---:|---:|---:|
-| 4 | 50 credits | 12 credits |
-| 5 | 3 credits | Not available |
-| 6 | Not available | Not available |
-
-Other pick counts allow the existing 50-credit maximum. “Not available” means
-even a one-credit stake exceeds the cap. The API must reject such a wager and
-the UI must explain why before the user confirms; do not lower quoted odds to
-fit the cap. Supporting every combination at the current 50-credit maximum
-would require raising the cap to 3,938,299,200 credits for six picks containing
-49, which the user chose not to do.
+function. With the confirmed one-million-credit gross-payout cap, the maximum
+legal stake varies by pick count, selected numbers, and the cap calculation;
+values are published as the selection's `maxStake` and the UI must show them
+before confirmation. A pick set is marked unavailable when even a 1-credit
+stake would exceed the cap, rather than reducing the odds to fit.
 
 ### Business-safe pricing policy
 
@@ -201,10 +194,10 @@ historical-frequency pricing or manually guessed prices:
 1. Calculate the exact probability from the configured draw process and the
    pick count / whether 49 is selected.
 2. Calculate decimal odds using `(1 - 0.08) / probability`, rounded down to
-   cents and subject to the existing minimum of 1.01.
-3. Keep the 50-credit per-bet stake limit and 1,000,000-credit gross-payout
-   limit. Validate both atomically on the server; display the maximum legal
-   stake before confirmation.
+   cents and subject to the current minimum of 1.01.
+3. Keep the 10-credit minimum stake, the wallet-balance checks, and the
+   1,000,000-credit gross-payout cap. Validate them atomically on the server;
+   display the maximum legal stake before confirmation.
 4. If the minimum one-credit stake would exceed the payout cap, mark that pick
    set unavailable. Do not silently cap the odds, because that would make
    displayed odds depend on stake and conceal a materially different price.
@@ -268,6 +261,7 @@ API.
   makes MID most common; historical draw counts are not used to override it.
 - **Rainbow:** allow multiple selections, enter a separate stake for each,
   submit each as an independent bet, and show each acceptance/error separately.
-- **Risk limits:** retain a 50-credit maximum stake and one-million-credit
+- **Risk limits:** retain a 10-credit minimum stake, wallet-balance checks, and
+  one-million-credit
   gross-payout cap. Reject and explain any exact-price selection that exceeds
   the cap even at the one-credit minimum.

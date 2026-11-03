@@ -26,8 +26,10 @@ an 8% target margin with round-down cent odds, and locks the selected odds when
 a bet is accepted. A bet contains one ordinary market selection or one
 number-pick ticket. Rainbow selections are separate bets, not parlays.
 User-approved credit settings are **100 credits = $1**, purchased with
-SOL, winnings are non-withdrawable, and stakes are capped at 50 credits. The
-current pick-six schedule is listed in Section 4.6.
+SOL, winnings are non-withdrawable, and the live rule is a 10-credit minimum
+stake with the actual maximum bounded by the player's wallet balance and the
+1,000,000-credit gross-payout cap. The current pick-six schedule is listed in
+Section 4.6.
 
 This is a description of local code, not a production launch approval. Draws
 still use `Math.random()`, the jurisdiction is undecided, and the legal,
@@ -134,9 +136,10 @@ controlled.
 5. Show the selected numbers, exact winning condition, stake, odds, and
    maximum gross payout in the review receipt. Lock the odds/version and the
    pick-rule version at acceptance.
-6. With the 50-credit stake limit and 1,000,000-credit gross-payout cap, reject
-   any pick set whose minimum legal stake would exceed the cap. Do not alter
-   its odds to force acceptance.
+6. With the 10-credit minimum stake, wallet-balance checks, and the
+   1,000,000-credit gross-payout cap, accept a valid pick set and cap the final
+   settlement payout at the cap instead of altering the odds to force an
+   acceptance.
 
 The former six-number Pick Six tier schedule is retained only to settle
 tickets accepted before the new pick markets replaced it; new tickets cannot
@@ -279,9 +282,10 @@ stake:
 
 The schedule is version 1. With the modeled probabilities, expected gross
 returns are approximately 91.55% for tickets excluding 49 and 90.92% for
-tickets including 49. The maximum stake is 50 credits and the maximum gross
-payout is 1,000,000 credits. The backend checks the maximum tier liability
-before accepting a ticket and stores the applicable schedule with it.
+tickets including 49. The minimum stake is 10 credits, the maximum per bet is
+bounded by the wallet balance and the 1,000,000-credit gross-payout cap, and
+the backend checks the maximum tier liability before accepting a ticket and
+stores the applicable schedule with it.
 
 Any future schedule must choose gross payout multipliers `M3`–`M6` together
 such that:
@@ -446,7 +450,7 @@ ledger entry, and audit event.
 | Markets | Seed includes number, jackpot, majority, sum bands, over/under, parity, exact color count, and pick six. | Add rule-version snapshots and operator controls over which markets are enabled per draw. |
 | Pricing | Exact combinatorial distributions use the configured jackpot probability; unsupported selections have no odds; decimal odds round down to cents. | Add per-draw quote snapshots, exposure/liability controls, and monitoring before production. |
 | Bet authentication | Wallet sign-in verifies an Ed25519 challenge; bets use the wallet from an HttpOnly session, not caller-supplied identity. | Add rate limiting, session cleanup, and production-origin review; no deployment verification has been done. |
-| Bet acceptance | Atomic balance debit, integer stake validation, 50-credit stake cap, idempotency, active draw/market checks, odds-version checks, and maximum gross-payout checks are implemented. | Add per-wallet/draw exposure limits and a clear operator cancellation/void flow. |
+| Bet acceptance | Atomic balance debit, integer stake validation, 10-credit minimum stake, wallet-balance and gross-payout cap enforcement, idempotency, active draw/market checks, odds-version checks, and settlement caps are implemented. | Add per-wallet/draw exposure limits and a clear operator cancellation/void flow. |
 | Exact color count | RED/BLUE/GREEN exact counts 0–6 and BLACK:1 are seeded, priced, and settled. | Confirm final player wording and market availability policy. |
 | Pick six | Six unique numbers are validated; tiers are versioned and persisted with tickets; settlement counts matches and pays the highest tier. | Add a player receipt with the full tier table and settlement details; current UI summarizes the third-hit return. |
 | Payout math | Integer/BigInt arithmetic is used for stake debits and gross payouts; account ledger entries are written in the settlement transaction. | Add reconciliation and operator audit tooling. |

@@ -7,11 +7,13 @@ import { useIsWalletReady, useConnect, useWallets } from '@solana/kit-plugin-wal
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
+  getWalletMe,
   requestAuthNonce,
   verifyAuthSignature,
   walletMeQueryKey,
 } from '@/lib/api';
-import { bytesToBase64, walletClient } from '@/lib/wallet';
+import { bytesToBase64 } from '@/lib/wallet';
+import { useSolanaNetwork } from '@/providers/SolanaNetworkProvider';
 import { useUiStore } from '@/store/ui/useUiStore';
 import { WalletSpinner } from './WalletSpinner';
 import styles from './wallet-dialog.module.css';
@@ -25,6 +27,7 @@ export function WalletDialog({
   onClose: () => void;
   sessionError: string | null;
 }) {
+  const { walletClient } = useSolanaNetwork();
   const wallets = useWallets(walletClient);
   const isWalletReady = useIsWalletReady(walletClient);
   const { dispatchAsync: connect } = useConnect(walletClient);
@@ -58,16 +61,17 @@ export function WalletDialog({
         throw new Error('Wallet verification failed.');
       }
 
+      const session = await getWalletMe();
+      if (session.address !== profile.address) {
+        throw new Error('The authenticated wallet does not match this wallet.');
+      }
+
       setWalletProfile({
-        walletId: profile.walletId,
-        address: profile.address,
-        balance: profile.balance,
+        walletId: session.walletId,
+        address: session.address,
+        balance: session.balance,
       });
-      queryClient.setQueryData(walletMeQueryKey, {
-        walletId: profile.walletId,
-        address: profile.address,
-        balance: profile.balance,
-      });
+      queryClient.setQueryData(walletMeQueryKey, session);
       onClose();
     } catch (error) {
       setErrorMessage(

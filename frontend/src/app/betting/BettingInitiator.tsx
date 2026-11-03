@@ -114,6 +114,7 @@ export function BettingInitiator() {
       (bet) =>
         /^[1-9]\d*$/.test(bet.stake) &&
         Number.isSafeInteger(Number(bet.stake)) &&
+        BigInt(bet.stake) >= BigInt(bet.minStake) &&
         Number(bet.stake) <= Number(bet.maxStake),
     );
   const hasEnoughBalance =
@@ -185,7 +186,8 @@ export function BettingInitiator() {
             updateBetQuote(bet.key, {
               odds: selection.currentOdds,
               oddsVersion: selection.oddsVersion,
-              maxStake: selection.maxStake ?? '50',
+              minStake: selection.minStake ?? '10',
+              maxStake: selection.maxStake ?? '999999',
             });
           }
           setError(
@@ -229,7 +231,7 @@ export function BettingInitiator() {
                     className={styles.stakeInput}
                     id={`stake-${bet.key}`}
                     type="number"
-                    min="1"
+                    min={bet.minStake}
                     max={bet.maxStake}
                     step="1"
                     inputMode="numeric"
@@ -343,7 +345,7 @@ export function BettingInitiator() {
           <div className={styles.reviewTotals}>
             <span>Total stake: <DiceAmount amount={totalStake} /></span>
             <span>
-              Maximum total return if all win:{' '}
+              Maximum total return if all win (per-ticket cap):{' '}
               <DiceAmount amount={maximumTotalReturn} />
             </span>
           </div>

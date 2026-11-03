@@ -9,7 +9,7 @@ import gsap from 'gsap';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ApiError, getWalletMe, logoutWallet, walletMeQueryKey } from '@/lib/api';
-import { walletClient } from '@/lib/wallet';
+import { useSolanaNetwork } from '@/providers/SolanaNetworkProvider';
 import { useUiStore } from '@/store/ui/useUiStore';
 import diceLogo from '../../../dice-png-27643.png';
 import styles from './betting-header.module.css';
@@ -34,6 +34,7 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const walletControlRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { network, setNetwork, walletClient } = useSolanaNetwork();
   const isWalletReady = useIsWalletReady(walletClient);
   const connectedWallet = useConnectedWallet(walletClient);
   const { dispatchAsync: disconnect } = useDisconnect(walletClient);
@@ -130,6 +131,29 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
     }
   }
 
+  async function handleNetworkChange(nextNetwork: 'mainnet' | 'devnet') {
+    if (nextNetwork === network || isDisconnecting) return;
+    setIsDisconnecting(true);
+    setDisconnectError(null);
+    try {
+      if (connectedWallet || walletProfile) {
+        await logoutWallet();
+        queryClient.setQueryData(walletMeQueryKey, null);
+        setWalletProfile(null);
+      }
+      if (connectedWallet) await disconnect();
+      setMenuOpen(false);
+      setWalletDialogOpen(false);
+      setNetwork(nextNetwork);
+    } catch (error) {
+      setDisconnectError(
+        error instanceof Error ? error.message : 'Unable to switch network.',
+      );
+    } finally {
+      setIsDisconnecting(false);
+    }
+  }
+
   return (
     <header className={styles.header} aria-busy={isLoading}>
       <Link className={styles.brandLogo} href="/" aria-label="Lucky6 home">
@@ -145,10 +169,24 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
         </span>
       </Link>
       <div className={styles.actions}>
-        <span className={styles.networkStatus} aria-label="Network: Mainnet">
-          <span>Mainnet</span>
+        <label className={styles.networkControl}>
+          <select
+            className={styles.networkStatus}
+            aria-label="Solana network"
+            value={network}
+            disabled={isDisconnecting}
+            onChange={(event) => {
+              const nextNetwork = event.currentTarget.value;
+              if (nextNetwork === 'mainnet' || nextNetwork === 'devnet') {
+                void handleNetworkChange(nextNetwork);
+              }
+            }}
+          >
+            <option value="mainnet">Mainnet</option>
+            <option value="devnet">Devnet</option>
+          </select>
           <span className={styles.networkIndicator} aria-hidden="true" />
-        </span>
+        </label>
         <div className={styles.balanceBox} aria-label={isLoading ? 'Loading balance' : 'Balance'}>
           <Image
             className={styles.balanceDice}
@@ -166,6 +204,11 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
             </span>
           )}
         </div>
+        {disconnectError && (
+          <span className={styles.networkError} role="alert">
+            {disconnectError}
+          </span>
+        )}
         {isLoading ? (
           <div className={styles.walletBox} aria-label="Loading wallet">
             <span className={styles.walletSkeleton} aria-hidden="true" />

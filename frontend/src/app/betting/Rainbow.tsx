@@ -105,10 +105,14 @@ export function Rainbow() {
                             selectionLabel: selection.label,
                             odds: selection.currentOdds,
                             oddsVersion: selection.oddsVersion,
+                            minStake:
+                              selection.minStake ??
+                              colorCountMarket.minStake ??
+                              '10',
                             maxStake:
                               selection.maxStake ??
                               colorCountMarket.maxStake ??
-                              '50',
+                              '999999',
                           },
                           true,
                         );

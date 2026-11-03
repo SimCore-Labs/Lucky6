@@ -13,6 +13,7 @@ export interface BetSelectionState {
   selectionLabel: string;
   odds: number;
   oddsVersion: number;
+  minStake: string;
   maxStake: string;
   stake: string;
   numbers?: number[];
@@ -34,7 +35,10 @@ export interface UiState {
   removeBet: (key: string) => void;
   updateBetQuote: (
     key: string,
-    quote: Pick<BetSelectionState, 'odds' | 'oddsVersion' | 'maxStake'>,
+    quote: Pick<
+      BetSelectionState,
+      'odds' | 'oddsVersion' | 'minStake' | 'maxStake'
+    >,
   ) => void;
   clearBets: () => void;
   setBetStake: (key: string, stake: string) => void;

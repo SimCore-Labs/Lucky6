@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Providers } from '@/providers/Providers';
 
 export const metadata: Metadata = {
   title: 'Lucky6 | Live Draws',
@@ -15,7 +16,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
