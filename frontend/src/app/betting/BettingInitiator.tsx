@@ -3,9 +3,12 @@
 import Close from '@mui/icons-material/Close';
 import { Dialog } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   ApiError,
+  createIdempotencyKey,
   createAuthenticatedBet,
   getCurrentDraw,
   getMarkets,
@@ -16,6 +19,8 @@ import {
 import { useUiStore } from '@/store/ui/useUiStore';
 import styles from './betting-initiator.module.css';
 
+const MAX_GROSS_PAYOUT = BigInt(1_000_000);
+
 function payoutFor(stake: string, odds: number): bigint {
   if (!/^[1-9]\d*$/.test(stake) || !Number.isFinite(odds) || odds <= 0) {
     return BigInt(0);
@@ -25,8 +30,22 @@ function payoutFor(stake: string, odds: number): bigint {
   return (BigInt(stake) * oddsHundredths) / BigInt(100);
 }
 
+function payoutWithinLimit(stake: string, odds: number): bigint {
+  const payout = payoutFor(stake, odds);
+  return payout > MAX_GROSS_PAYOUT ? MAX_GROSS_PAYOUT : payout;
+}
+
 function formatCredits(value: bigint): string {
   return value.toLocaleString('en-US');
+}
+
+function DiceAmount({ amount }: { amount: bigint }) {
+  return (
+    <span className={styles.diceAmount}>
+      <Image src="/dice.png" alt="" aria-hidden="true" width={16} height={16} />
+      <span>{formatCredits(amount)}</span>
+    </span>
+  );
 }
 
 function errorMessage(error: unknown): string {
@@ -82,8 +101,8 @@ export function BettingInitiator() {
     if (!/^[1-9]\d*$/.test(bet.stake)) return total;
     return total + BigInt(bet.stake);
   }, BigInt(0));
-  const potentialPayout = selectedBets.reduce(
-    (total, bet) => total + payoutFor(bet.stake, bet.odds),
+  const maximumTotalReturn = selectedBets.reduce(
+    (total, bet) => total + payoutWithinLimit(bet.stake, bet.odds),
     BigInt(0),
   );
   const isDrawOpen =
@@ -114,7 +133,8 @@ export function BettingInitiator() {
     setError(null);
     try {
       for (const bet of selectedBets) {
-        const idempotencyKey = bet.idempotencyKey ?? crypto.randomUUID();
+        const idempotencyKey =
+          bet.idempotencyKey ?? createIdempotencyKey();
         if (!bet.idempotencyKey) {
           setBetIdempotencyKey(bet.key, idempotencyKey);
         }
@@ -196,9 +216,12 @@ export function BettingInitiator() {
                 <div className={styles.betDetails}>
                   <strong>{bet.marketTitle}</strong>
                   <span>{bet.selectionLabel}</span>
-                  <span>
-                    Odds {bet.odds.toFixed(2)}× · Max stake {bet.maxStake}
-                  </span>
+                  <div className={styles.betMeta}>
+                    <span>Odds {bet.odds.toFixed(2)}×</span>
+                    <span className={styles.maxStake}>
+                      Max stake <DiceAmount amount={BigInt(bet.maxStake)} />
+                    </span>
+                  </div>
                 </div>
                 <label className={styles.stakeField} htmlFor={`stake-${bet.key}`}>
                   <span>Stake</span>
@@ -223,17 +246,13 @@ export function BettingInitiator() {
           <div className={styles.betSummary}>
             <div className={styles.summaryItem}>
               <span>Total stake</span>
-              <output>{formatCredits(totalStake)} credits</output>
+              <output><DiceAmount amount={totalStake} /></output>
             </div>
             <div className={styles.payout}>
-              <span>Max payout</span>
-              <output>{formatCredits(potentialPayout)} credits</output>
+              <span>Max return</span>
+              <output><DiceAmount amount={maximumTotalReturn} /></output>
             </div>
           </div>
-          <p className={styles.separateBetsNote}>
-            Each selection is a separate bet. Rainbow payouts are not combined
-            as a parlay.
-          </p>
           {error && (
             <p className={styles.errorMessage} role="alert">
               {error}
@@ -274,7 +293,10 @@ export function BettingInitiator() {
           </div>
           {!hasEnoughBalance && walletQuery.data && (
             <p className={styles.errorMessage} role="alert">
-              Total stake is greater than your available balance.
+              Total stake is greater than your available balance.{' '}
+              <Link className={styles.topUpLink} href="/top-up">
+                Top up
+              </Link>
             </p>
           )}
         </>
@@ -308,20 +330,21 @@ export function BettingInitiator() {
                 <div>
                   <strong>{bet.selectionLabel}</strong>
                   <span>
-                    {bet.stake} credits at {bet.odds.toFixed(2)}×
+                    <DiceAmount amount={BigInt(bet.stake)} /> at{' '}
+                    {bet.odds.toFixed(2)}×
                   </span>
                 </div>
                 <strong>
-                  {formatCredits(payoutFor(bet.stake, bet.odds))} credits
+                  <DiceAmount amount={payoutWithinLimit(bet.stake, bet.odds)} />
                 </strong>
               </li>
             ))}
           </ul>
           <div className={styles.reviewTotals}>
-            <span>Total stake: {formatCredits(totalStake)} credits</span>
+            <span>Total stake: <DiceAmount amount={totalStake} /></span>
             <span>
-              Maximum total return if all win: {formatCredits(potentialPayout)}{' '}
-              credits
+              Maximum total return if all win:{' '}
+              <DiceAmount amount={maximumTotalReturn} />
             </span>
           </div>
           {error && (

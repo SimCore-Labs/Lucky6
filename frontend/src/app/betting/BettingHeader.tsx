@@ -55,6 +55,16 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
   const walletProfile = walletSession.data;
   const isLoading = loading || !isWalletReady || walletSession.isPending;
   const isConnected = Boolean(connectedWallet || walletProfile);
+  const isWalletSessionMatched = Boolean(
+    connectedWallet?.signer &&
+      walletProfile &&
+      connectedWallet.account.address === walletProfile.address,
+  );
+  const walletAddress =
+    connectedWallet?.account.address ?? walletProfile?.address;
+  const walletActionLabel = connectedWallet?.signer
+    ? 'Verify wallet'
+    : 'Reconnect wallet';
 
   useGSAP(
     () => {
@@ -140,6 +150,14 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
           <span className={styles.networkIndicator} aria-hidden="true" />
         </span>
         <div className={styles.balanceBox} aria-label={isLoading ? 'Loading balance' : 'Balance'}>
+          <Image
+            className={styles.balanceDice}
+            src="/dice.png"
+            alt=""
+            aria-hidden="true"
+            width={20}
+            height={20}
+          />
           {isLoading ? (
             <span className={styles.balanceSkeleton} aria-hidden="true" />
           ) : (
@@ -183,11 +201,9 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
                 <WalletOutlined className={styles.walletIcon} aria-hidden="true" />
               )}
               <span>
-                {isConnected && walletProfile
-                  ? shortenAddress(walletProfile.address)
-                  : isConnected && connectedWallet
-                    ? shortenAddress(connectedWallet.account.address)
-                    : 'Connect wallet'}
+                {walletAddress
+                  ? shortenAddress(walletAddress)
+                  : 'Connect wallet'}
               </span>
             </button>
             {isConnected && menuOpen && (
@@ -198,6 +214,19 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
                 role="menu"
                 aria-label="Wallet actions"
               >
+                {!isWalletSessionMatched && (
+                  <button
+                    className={styles.disconnectButton}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setWalletDialogOpen(true);
+                    }}
+                  >
+                    <span>{walletActionLabel}</span>
+                  </button>
+                )}
                 <button
                   className={styles.disconnectButton}
                   type="button"

@@ -1,0 +1,255 @@
+.dialog {
+  width: min(440px, calc(100vw - 32px));
+  margin: 16px;
+  border: 0;
+  border-radius: 12px !important;
+  background: #fff;
+  color: #111827;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  box-shadow: 0 24px 80px rgb(15 23 42 / 20%) !important;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 34px 28px 28px;
+  text-align: center;
+}
+
+.content h2 {
+  margin: 0;
+  color: #17231c;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.closeButton:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible {
+  outline: 2px solid rgb(79 70 229 / 45%);
+  outline-offset: 2px;
+}
+
+.creditAmount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.creditAmount img {
+  object-fit: contain;
+}
+
+.creditAmount strong {
+  color: #17231c;
+  font-size: 23px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paymentAmount {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+  padding: 18px 16px;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: left;
+}
+
+.paymentAmount strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #17231c;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paymentAmount img {
+  object-fit: contain;
+}
+
+.usdAmount {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.usdAmount span:last-child {
+  color: #17231c;
+  font-variant-numeric: tabular-nums;
+}
+
+.expiry {
+  margin: 16px 0 20px;
+  color: #6b7280;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.expiry time {
+  margin-left: 4px;
+  color: #17231c;
+  font-weight: 650;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primaryButton {
+  width: 100%;
+  background: #4f46e5;
+  color: #fff;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.secondaryButton {
+  min-width: 120px;
+  margin-top: 6px;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.secondaryButton:hover {
+  background: #e5e7eb;
+}
+
+.feedback {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-top: 12px;
+}
+
+.feedback p {
+  max-width: 320px;
+  margin: 0 0 4px;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.successAnimation {
+  position: relative;
+  display: grid;
+  width: 88px;
+  height: 88px;
+  margin-bottom: 2px;
+  place-items: center;
+}
+
+.successIcon,
+.errorIcon {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.successIcon {
+  background: #16a34a;
+  color: #fff;
+}
+
+.errorIcon {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.confetti {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  opacity: 0;
+}
+
+.successAnimation .confetti:nth-child(2) {
+  background: #16a34a;
+}
+
+.successAnimation .confetti:nth-child(3) {
+  background: #4f46e5;
+}
+
+.successAnimation .confetti:nth-child(4) {
+  background: #f59e0b;
+}
+
+.successAnimation .confetti:nth-child(5) {
+  background: #0ea5e9;
+}
+
+.successAnimation .confetti:nth-child(6) {
+  background: #ec4899;
+}
+
+.successAnimation .confetti:nth-child(7) {
+  background: #22c55e;
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 34px 20px 24px;
+  }
+
+  .paymentAmount strong {
+    font-size: 17px;
+  }
+}

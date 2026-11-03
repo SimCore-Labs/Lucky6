@@ -18,6 +18,12 @@ be found if the browser closes before its signature reaches the API.
 Only an exact successful transfer is credited. Underpayments, overpayments,
 failed transactions, and mismatches are not credited automatically.
 
+On `/top-up`, the player connects and authenticates a wallet before creating an
+order. Continue opens a review dialog with the locked SOL amount and expiry
+countdown; Pay requests the wallet signature. The dialog stays locked only
+while the wallet is responding, then the frontend submits the signature and
+polls the order until the worker credits it or reports a terminal status.
+
 Credit balance, ledger entry, and order status are committed in one database
 transaction. The ledger is authoritative; the browser never supplies its own
 credit amount, SOL price, network, or treasury destination. A treasury private

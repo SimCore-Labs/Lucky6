@@ -203,11 +203,9 @@ export function Lucky6({
                 ))}
               </tbody>
             </table>
-            {selectedNumbers.length > 0 && (
+            {selectedNumbers.length > 0 && maxStake >= 1 && (
               <p className={styles.oddsMessage}>
-                {maxStake < 1
-                  ? 'This pick cannot be placed within the current payout limit.'
-                  : `Max stake ${maxStake} credits.`}
+                Max stake {maxStake} credits.
               </p>
             )}
           </>

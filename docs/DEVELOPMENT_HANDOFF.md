@@ -1,7 +1,7 @@
 # Lucky6 Deployment & Development Handoff
 
-**Updated:** October 2026
-**Repository:** `[Your GitHub Repo]`
+**Updated:** November 3, 2026
+**Repository:** `SimCore-Labs/Lucky6`
 
 ## 1. Architecture Overview
 Lucky6 is a Web3-enabled real-time game architecture utilizing a monorepo structure. The system consists of:
@@ -13,18 +13,40 @@ Lucky6 is a Web3-enabled real-time game architecture utilizing a monorepo struct
 
 ## 2. Server Access (AWS EC2)
 
-The live backend runs on an Ubuntu EC2 instance (`t3.small`) in the `eu-north-1` region.
-- **Public IP:** `16.16.90.151`
-- **Public DNS:** `ec2-16-16-90-151.eu-north-1.compute.amazonaws.com`
+The live backend runs on the `Lucky6-API-Production` EC2 instance.
+- **Instance ID:** `i-01ea01931b684d075`
+- **Region:** `eu-north-1` (Europe/Stockholm)
+- **Availability Zone:** `eu-north-1a`
+- **Instance type:** `t3.small`
+- **Operating system:** Ubuntu 24.04
+- **Runtime:** Node.js `v24.22.1`, PM2 `7.1.1`
+- **Public IP:** `16.170.92.0`
+- **Elastic IP allocation:** `eipalloc-0a48f334dcea9269e` (associated with this instance)
+- **Public DNS:** `ec2-16-170-92-0.eu-north-1.compute.amazonaws.com`
 - **User:** `ubuntu`
-- **SSH Key:** `wesheild.pem`
+- **EC2 key pair:** `wesheild`
+- **Local SSH key:** `$HOME/Downloads/wesheild.pem` (verified mode `600`)
+- **Deployment checkout:** `/home/ubuntu/Lucky6-deploy`
+- **Security group:** `sg-057a93e7148801470`
 
-### Connecting via SSH (Local Machine)
-From your local Windows PowerShell, connect using the private key:
-```powershell
-ssh -i C:\path\to\wesheild.pem ubuntu@16.16.90.151
+The IP, DNS, and Elastic IP association above were verified on November 3,
+2026. The Elastic IP is assigned to this instance; check its current
+association in AWS if connectivity or DNS stops working. The previously
+documented `16.16.90.151` address is stale.
+
+### Connecting via SSH (Linux or macOS)
+
+From the development machine where the key is stored in Downloads:
+
+```bash
+chmod 600 "$HOME/Downloads/wesheild.pem"
+ssh -i "$HOME/Downloads/wesheild.pem" ubuntu@ec2-16-170-92-0.eu-north-1.compute.amazonaws.com
 ```
-*Note: Ensure your `.pem` file permissions are restricted, otherwise SSH will reject it.*
+
+The instance security group currently permits inbound SSH (TCP port 22) from
+`0.0.0.0/0`. Restrict this to the administrator's current public IP when
+practical. Never copy the private key into the repository or onto the EC2
+instance.
 
 ## 3. Deployment workflow status
 
@@ -49,7 +71,17 @@ npm run build --workspace=settlement
 npm run build --workspace=payment-worker
 ```
 
-The active deployment checkout is `~/Lucky6-deploy`; it was created to preserve the pre-existing `~/Lucky6` checkout and its local lockfile change. These commands do not build or run the frontend. Configure `backend/.env` with the production Turso `DATABASE_URL` (`libsql://...`), `TURSO_AUTH_TOKEN`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. Set `CORS_ORIGIN` to the exact Vercel origin (no trailing slash). For local frontend development against the deployed API, add `http://localhost:3000` as a comma-separated second origin. The PM2 ecosystem loads that file for each backend process; restart all four services after changing the database credentials.
+The active deployment checkout is `~/Lucky6-deploy`; it was created to preserve the pre-existing `~/Lucky6` checkout and its local lockfile change. These commands do not build or run the frontend. Configure `backend/.env` with the production Turso `DATABASE_URL` (`libsql://...`), `TURSO_AUTH_TOKEN`, `REDIS_URL`, `CORS_ORIGIN`, `SOLANA_RPC_URL`, and `TREASURY_WALLET_ADDRESS` before starting services. `CORS_ORIGIN` is a comma-separated list of exact origins with no trailing slashes. As of November 3, 2026, the deployed value includes:
+
+```text
+https://lucky6ix.vercel.app,http://localhost:3000,http://192.168.100.242:3000
+```
+
+The LAN origin is for temporary local development and must be updated if the
+developer machine's address changes; remove it when it is no longer needed.
+The PM2 ecosystem loads `backend/.env` for each process. After changing only
+`CORS_ORIGIN`, restart the API with `pm2 restart lucky6-backend --update-env`;
+restart workers when their database or Redis configuration changes.
 
 Start the API and backend workers with:
 
@@ -78,7 +110,7 @@ balances, payments, and ledger entries.
 
 To assign `luckyapi.muizdev.xyz` to the backend on EC2, install Nginx and Certbot on the Ubuntu machine.
 
-1. **DNS Setup:** In your domain provider (e.g., Cloudflare, Namecheap), point an `A` record for `luckyapi.muizdev.xyz` to the EC2 Public IP: `16.16.90.151`.
+1. **DNS Setup:** Point the `A` record for `luckyapi.muizdev.xyz` to the assigned Elastic IP: `16.170.92.0`.
 2. **Nginx Setup on EC2:**
 ```bash
 sudo apt update

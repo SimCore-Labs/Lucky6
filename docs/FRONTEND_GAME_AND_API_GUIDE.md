@@ -98,8 +98,9 @@ engine: `OPEN`, `CLOSING`, `CLOSED`, `DRAWING`, `RESULT_READY`, and
 `SETTLEMENT_PENDING`. The response includes `latestResult`, the most recent
 complete result (including `SETTLED` draws), separately from the current
 round's clock and status. If the engine has not created an active draw, the
-API returns HTTP 404 with `No active draw is currently available.` It does not
-create a draw; creation and lifecycle transitions belong to the engine.
+API returns HTTP 200 with a JSON `null` body. This is a normal no-active-draw
+state, not an API error. It does not create a draw; creation and lifecycle
+transitions belong to the engine.
 
 For the one-time pre-launch test-data reset, stop all four PM2 services, apply
 pending migrations, then run
@@ -152,8 +153,8 @@ the failed check unavailable.
 
 Returns the highest-numbered draw in one of the active statuses:
 `OPEN`, `CLOSING`, `CLOSED`, `DRAWING`, `RESULT_READY`, or
-`SETTLEMENT_PENDING`. When none exists, returns HTTP 404; the API never creates
-a draw on the frontend's behalf.
+`SETTLEMENT_PENDING`. When none exists, returns HTTP 200 with a JSON `null`
+body; the API never creates a draw on the frontend's behalf.
 
 ```json
 {

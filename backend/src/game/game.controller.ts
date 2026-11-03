@@ -106,7 +106,7 @@ export class GameController {
     });
 
     if (!draw) {
-      throw new NotFoundException('No active draw is currently available.');
+      return null;
     }
 
     const latestResult =

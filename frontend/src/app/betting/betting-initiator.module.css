@@ -46,9 +46,26 @@
   font-weight: 700;
 }
 
-.betDetails span:last-child {
+.betDetails > span {
   color: #6b7280;
   font-size: 11px;
+}
+
+.betMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.maxStake {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .stakeField {
@@ -84,6 +101,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+.diceAmount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #17231c;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.diceAmount img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  object-fit: contain;
+}
+
 .payout {
   display: flex;
   align-items: center;
@@ -103,19 +137,25 @@
   font-weight: 750;
 }
 
-.separateBetsNote {
-  margin: 10px 0 0;
-  color: #6b7280;
-  font-size: 11px;
-  text-align: center;
-}
-
 .errorMessage {
   margin: 10px 0 0;
   color: #b91c1c;
   font-size: 12px;
   line-height: 1.45;
   text-align: center;
+}
+
+.topUpLink {
+  color: #123b8a;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.topUpLink:focus-visible {
+  border-radius: 2px;
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 2px;
 }
 
 .actions {

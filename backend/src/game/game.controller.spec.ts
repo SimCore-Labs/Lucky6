@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { GameController } from './game.controller.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -233,16 +232,14 @@ describe('GameController current draw', () => {
     });
   });
 
-  it('returns not found when the engine has not created an active draw', async () => {
+  it('returns null when the engine has not created an active draw', async () => {
     const findFirst = vi.fn().mockResolvedValue(null);
     const prisma = {
       draw: { findFirst },
     } as unknown as PrismaService;
     const controller = new GameController(prisma);
 
-    await expect(controller.getCurrentDraw()).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(controller.getCurrentDraw()).resolves.toBeNull();
     expect(findFirst).toHaveBeenCalledTimes(1);
   });
 });

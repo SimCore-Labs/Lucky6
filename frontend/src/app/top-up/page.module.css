@@ -1,0 +1,292 @@
+.page,
+.loadingPage {
+  min-height: 100dvh;
+  background: #fff;
+  color: #111827;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.loadingPage {
+  display: grid;
+  place-items: center;
+}
+
+.loadingContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 88px);
+  align-items: center;
+  justify-content: center;
+  padding: 32px clamp(20px, 5vw, 64px);
+  background: #fff;
+}
+
+.content h1 {
+  margin: 0 0 24px;
+  color: #17231c;
+  font-size: clamp(20px, 2.2vw, 24px);
+  font-weight: 700;
+  text-align: center;
+}
+
+.panel {
+  width: min(100%, 1080px);
+  min-height: clamp(420px, 68vh, 720px);
+  padding: clamp(24px, 4vw, 48px);
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.panelContent {
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+
+.panelContent h2 {
+  margin: 0;
+  color: #17231c;
+  font-size: 20px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.amountOptions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.amountOption {
+  display: flex;
+  min-height: 116px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 0;
+  background: #fff;
+  color: #17231c;
+  text-align: left;
+  cursor: pointer;
+}
+
+.creditAmount {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.creditAmount img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.creditLabel {
+  padding-left: 30px;
+}
+
+.amountOption:hover {
+  border-color: #4f46e5;
+}
+
+.amountOption:focus-visible,
+.continueButton:focus-visible {
+  outline: 2px solid rgb(79 70 229 / 45%);
+  outline-offset: 2px;
+}
+
+.creditAmount strong {
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountOption span,
+.amountOption small {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.amountOption small {
+  margin-top: 6px;
+}
+
+.selectedAmount {
+  border-color: #4f46e5;
+  background: #f5f5ff;
+  box-shadow: inset 0 0 0 1px #4f46e5;
+}
+
+.manualAmount {
+  display: grid;
+  width: min(100%, 220px);
+  gap: 8px;
+  margin-top: 24px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.manualAmount input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 0;
+  background: #fff;
+  color: #17231c;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.manualAmount input:focus-visible {
+  border-color: #4f46e5;
+  outline: none;
+}
+
+.manualAmount small {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.continueRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.continueButton {
+  display: inline-flex;
+  min-width: 144px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 0;
+  background: #4f46e5;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.continueButton:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.continueButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.walletPrompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.connectButton {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 0;
+  background: #fff;
+  color: #17231c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.connectButton:hover {
+  border-color: #4f46e5;
+}
+
+.connectButton:focus-visible {
+  outline: 2px solid rgb(79 70 229 / 45%);
+  outline-offset: 2px;
+}
+
+.quoteError {
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .content {
+    justify-content: flex-start;
+    padding: 24px 16px;
+  }
+
+  .content h1 {
+    margin-bottom: 16px;
+  }
+
+  .panel {
+    min-height: 0;
+    padding: 20px 16px;
+  }
+
+  .panelContent {
+    width: 100%;
+  }
+
+  .panelContent h2 {
+    font-size: 18px;
+  }
+
+  .amountOptions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .amountOption {
+    min-height: 104px;
+    padding: 12px;
+  }
+
+  .creditAmount {
+    gap: 6px;
+  }
+
+  .creditAmount img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .creditLabel {
+    padding-left: 26px;
+  }
+
+  .creditAmount strong {
+    font-size: 19px;
+  }
+
+  .manualAmount {
+    width: min(100%, 220px);
+    margin-top: 20px;
+  }
+
+  .continueRow {
+    justify-content: flex-end;
+  }
+}

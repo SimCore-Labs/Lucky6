@@ -340,14 +340,26 @@
 
 @media (max-width: 800px) {
   .section {
-    width: fit-content;
-    grid-template-columns: max-content;
+    width: min(100%, 480px);
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
     row-gap: 32px;
   }
 
+  .gamePanel {
+    width: 100%;
+  }
+
+  .numberGrid {
+    margin-inline: auto;
+  }
+
   .selectedBallsBox {
+    width: fit-content;
+    max-width: 100%;
     grid-row: auto;
     margin-top: 0;
+    margin-inline: auto;
   }
 
   .selectionActions {
@@ -381,7 +393,7 @@
   }
 
   .numberGrid {
-    grid-template-columns: repeat(7, 28px);
+    grid-template-columns: repeat(7, 30px);
     gap: 6px 4px;
   }
 

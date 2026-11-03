@@ -11,6 +11,25 @@ export class ApiError extends Error {
   }
 }
 
+export function createIdempotencyKey(): string {
+  const cryptoProvider = globalThis.crypto;
+  if (!cryptoProvider?.getRandomValues) {
+    throw new Error('Secure randomness is unavailable in this browser.');
+  }
+
+  const bytes = cryptoProvider.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'));
+  return [
+    hex.slice(0, 4).join(''),
+    hex.slice(4, 6).join(''),
+    hex.slice(6, 8).join(''),
+    hex.slice(8, 10).join(''),
+    hex.slice(10, 16).join(''),
+  ].join('-');
+}
+
 export async function fetchJson<T>(
   endpoint: string,
   options?: RequestInit,
@@ -109,8 +128,8 @@ export interface MarketResponse {
 
 export async function getCurrentDraw(
   signal?: AbortSignal,
-): Promise<CurrentDrawResponse> {
-  return fetchJson<CurrentDrawResponse>('/draws/current', { signal });
+): Promise<CurrentDrawResponse | null> {
+  return fetchJson<CurrentDrawResponse | null>('/draws/current', { signal });
 }
 
 export async function getDrawResults(
