@@ -325,7 +325,7 @@ export function BettingInitiator() {
         onClose={() => {
           if (!isSubmitting) setReviewOpen(false);
         }}
-        aria-labelledby="bet-confirmation-title"
+        aria-labelledby="place-bet-title"
         aria-describedby="bet-confirmation-description"
       >
         <div className={styles.reviewDialog}>
@@ -338,31 +338,36 @@ export function BettingInitiator() {
           >
             <Close fontSize="small" />
           </button>
-          <h2 id="bet-confirmation-title">Confirm bet</h2>
-          <p id="bet-confirmation-description">
-            Draw #{drawQuery.data?.drawNumber}
-          </p>
+          <div className={styles.reviewHeading}>
+            <h2 id="place-bet-title">Place bet</h2>
+            <p id="bet-confirmation-description">
+              Draw #{drawQuery.data?.drawNumber}
+            </p>
+          </div>
           <ul className={styles.reviewList}>
             {selectedBets.map((bet) => (
               <li key={bet.key}>
-                <div>
+                <div className={styles.reviewDetails}>
                   <strong>{bet.selectionLabel}</strong>
-                  <span>
+                  <span className={styles.reviewStake}>
                     <DiceAmount amount={BigInt(bet.stake)} /> at{' '}
                     {bet.odds.toFixed(2)}×
                   </span>
                 </div>
-                <strong>
-                  <DiceAmount amount={payoutWithinLimit(bet.stake, bet.odds)} />
-                </strong>
+                <div className={styles.reviewReturn}>
+                  <span>Return</span>
+                  <strong>
+                    <DiceAmount amount={payoutWithinLimit(bet.stake, bet.odds)} />
+                  </strong>
+                </div>
               </li>
             ))}
           </ul>
           <div className={styles.reviewTotals}>
-            <span>Stake: <DiceAmount amount={totalStake} /></span>
-            <span>
-              Max return: <DiceAmount amount={maximumTotalReturn} />
-            </span>
+            <span>Total stake</span>
+            <strong><DiceAmount amount={totalStake} /></strong>
+            <span>Max return</span>
+            <strong><DiceAmount amount={maximumTotalReturn} /></strong>
           </div>
           {error && (
             <p className={styles.errorMessage} role="alert">
@@ -383,7 +388,7 @@ export function BettingInitiator() {
             {isSubmitting ? (
               <WalletSpinner label="Placing bet" size="small" />
             ) : (
-              'Confirm bet'
+              'Place bet'
             )}
           </button>
         </div>

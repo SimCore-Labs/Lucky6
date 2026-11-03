@@ -20,6 +20,120 @@
   padding: 48px clamp(20px, 5vw, 64px);
 }
 
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.desktopNavigation {
+  min-height: 48px;
+  padding: 0 clamp(20px, 4vw, 56px);
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.mobileNavigation {
+  display: none;
+}
+
+.navigationItem {
+  position: relative;
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.navigationItem:hover {
+  background: #f9fafb;
+  color: #17231c;
+}
+
+.navigationItemSelected {
+  background: #eff6ff;
+  color: #123b8a;
+}
+
+.navigationIcon {
+  flex: 0 0 auto;
+}
+
+.navigationIconWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.navigationBadge {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #123b8a;
+  color: #fff;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.navigationItem:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 2px;
+}
+
+.slipIndicator {
+  display: flex;
+  width: min(100%, 760px);
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px auto 0;
+  padding: 10px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #17231c;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slipIndicator > span:first-child {
+  display: grid;
+  gap: 2px;
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.slipIndicator strong {
+  color: #17231c;
+  font-size: 14px;
+}
+
+.slipIndicatorAction {
+  color: #123b8a;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.slipIndicator:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 35%);
+  outline-offset: 3px;
+}
+
 .sectionSlot {
   width: 100%;
   max-width: 960px;
@@ -417,7 +531,7 @@
   }
 }
 
-@media (min-width: 481px) and (max-width: 760px) {
+@media (min-width: 481px) and (max-width: 1024px) {
   .sectionLogos {
     display: grid;
     min-height: 0;
@@ -439,6 +553,47 @@
 
   .loadingGame {
     min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .desktopNavigation {
+    display: none;
+  }
+
+  .mobileNavigation {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    justify-content: space-around;
+    gap: 4px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid #e5e7eb;
+    background: rgb(255 255 255 / 96%);
+    box-shadow: 0 -8px 24px rgb(15 23 42 / 7%);
+    backdrop-filter: blur(12px);
+  }
+
+  .content {
+    padding: 28px 20px calc(104px + env(safe-area-inset-bottom));
+  }
+
+  .navigationItem {
+    min-width: 76px;
+    min-height: 52px;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 12px;
+    font-size: 11px;
+  }
+
+  .navigationBadge {
+    position: absolute;
+    top: -6px;
+    right: -9px;
   }
 }
 

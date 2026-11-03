@@ -234,6 +234,61 @@ describe('GameController current draw', () => {
     });
   });
 
+  describe('GameController wallet transactions', () => {
+    it('returns the authenticated wallet ledger in newest-first order', async () => {
+      const createdAt = new Date('2026-10-14T12:00:00.000Z');
+      const findUnique = vi.fn().mockResolvedValue({
+        entries: [
+          {
+            id: 'ledger-entry-id',
+            amount: -10n,
+            type: 'BET_STAKE',
+            reference: 'BET_bet-id',
+            createdAt,
+          },
+        ],
+      });
+      const prisma = {
+        ledgerAccount: { findUnique },
+      } as unknown as PrismaService;
+      const controller = new GameController(prisma);
+
+      await expect(
+        controller.getMyWalletTransactions(
+          { authenticatedWallet: { id: 'wallet-id' } } as never,
+        ),
+      ).resolves.toEqual([
+        {
+          id: 'ledger-entry-id',
+          amount: '-10',
+          type: 'BET_STAKE',
+          reference: 'BET_bet-id',
+          createdAt: createdAt.toISOString(),
+        },
+      ]);
+      expect(findUnique).toHaveBeenCalledWith({
+        where: { walletId: 'wallet-id' },
+        select: {
+          entries: {
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+          },
+        },
+      });
+    });
+
+    it('rejects transaction limits outside the supported range', async () => {
+      const controller = new GameController({} as PrismaService);
+
+      await expect(
+        controller.getMyWalletTransactions(
+          { authenticatedWallet: { id: 'wallet-id' } } as never,
+          '51',
+        ),
+      ).rejects.toThrow('Limit must be an integer between 1 and 50.');
+    });
+  });
+
   it('returns null when the engine has not created an active draw', async () => {
     const findFirst = vi.fn().mockResolvedValue(null);
     const prisma = {

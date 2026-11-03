@@ -295,8 +295,21 @@ Wallet balances and stakes are Prisma `BigInt` values stored by SQLite/libSQL as
 decimal strings. Keep them as strings or parse with `BigInt` for exact
 arithmetic; do not assume they are JavaScript-safe integers.
 
+### `GET /wallet/transactions`
+
+Requires the wallet session cookie and returns up to 50 newest ledger entries
+for the authenticated wallet. Each entry contains `id`, decimal-string `amount`,
+`type`, nullable `reference`, and ISO `createdAt`. The `amount` is signed:
+stakes are negative and credits or payouts are positive.
+
 The legacy `GET /wallet/:walletId/balance` route is also session guarded and
 returns not found for a wallet other than the authenticated wallet.
+
+### `GET /bets/mine`
+
+Requires the wallet session cookie and returns the wallet's newest accepted and
+settled bets, including their draw, selection/ticket details, and settlement
+result. The optional `limit` query parameter must be between 1 and 50.
 
 ### `POST /auth/nonce` and `POST /auth/verify`
 
@@ -573,8 +586,9 @@ The Prisma schema is in `backend/prisma/schema.prisma`.
 - `Settlement` is unique per bet and stores status and payout.
 - `AuthChallenge` and `WalletSession` store signature-login challenges and
   session-token hashes.
-- Payment orders and transactions are modeled but currently lack public API
-  routes.
+- Payment orders and transactions are modeled behind session-protected
+  `/payments` routes; wallet ledger entries are available through
+  `GET /wallet/transactions`.
 
 For presentation, convert BigInt strings without loss. For monetary values,
 display SIM units according to product decisions; the API currently exposes
@@ -592,10 +606,11 @@ integer SIM credits, not fractional SIM.
 | Health | `GET /health` |
 | Live broadcast | Socket.IO events bridged from Redis |
 | Draw history | No HTTP route found |
-| Bet history | No HTTP route found |
-| Payment quote/order/signature submission | No HTTP route found |
+| Bet history | `GET /bets/mine` |
+| Wallet transaction history | `GET /wallet/transactions` |
+| Payment quote/order/signature submission | `GET /payments/quote`, `POST /payments/orders`, `POST /payments/orders/:orderId/submit` |
 | Odds refresh/admin configuration | No HTTP route found |
-| Session-protected wallet/bet API authorization | Not enforced by these controllers |
+| Session-protected wallet/bet API authorization | Enforced by `SessionGuard` |
 
 ## 11. Additional issues found during code review
 

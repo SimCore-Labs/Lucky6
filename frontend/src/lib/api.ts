@@ -259,8 +259,22 @@ export interface BetHistoryItem {
   } | null;
 }
 
+export interface WalletTransaction {
+  id: string;
+  amount: string;
+  type: string;
+  reference: string | null;
+  createdAt: string;
+}
+
 export async function getWalletMe(signal?: AbortSignal) {
   return fetchJson<WalletProfileResponse>('/wallet/me', { signal });
+}
+
+export async function getWalletTransactions(signal?: AbortSignal) {
+  return fetchJson<WalletTransaction[]>('/wallet/transactions?limit=50', {
+    signal,
+  });
 }
 
 export async function getPaymentQuote(payload: { credits: number }) {
@@ -296,8 +310,8 @@ export async function getPaymentOrder(orderId: string, signal?: AbortSignal) {
   );
 }
 
-export async function getMyBets(signal?: AbortSignal) {
-  return fetchJson<BetHistoryItem[]>('/bets/mine', { signal });
+export async function getMyBets(signal?: AbortSignal, limit = 20) {
+  return fetchJson<BetHistoryItem[]>(`/bets/mine?limit=${limit}`, { signal });
 }
 
 export type CreateBetRequest =

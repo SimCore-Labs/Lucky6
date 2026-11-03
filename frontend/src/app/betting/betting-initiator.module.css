@@ -203,22 +203,37 @@
 
 .reviewDialog {
   position: relative;
-  width: min(480px, calc(100vw - 32px));
-  padding: 28px;
+  width: min(420px, calc(100vw - 64px));
+  min-width: 0;
+  max-width: 100%;
+  padding: 30px clamp(16px, 5vw, 28px) 24px;
+  overflow-x: hidden;
+  border-radius: 16px;
   background: #fff;
 }
 
 .reviewDialog h2 {
   margin: 0;
   color: #17231c;
-  font-size: 20px;
+  font-size: 22px;
+  font-weight: 750;
+  text-align: center;
 }
 
-.reviewDialog > p:not(.errorMessage) {
-  margin: 8px 32px 16px 0;
+.reviewHeading {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin-bottom: 20px;
+  padding-inline: 20px;
+  text-align: center;
+}
+
+.reviewHeading p {
+  margin: 0;
   color: #6b7280;
   font-size: 13px;
-  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
 .closeButton {
@@ -237,6 +252,7 @@
 
 .reviewList {
   display: grid;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -246,36 +262,73 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid #e5e7eb;
+  gap: 8px 12px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8fafc;
   color: #17231c;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
-.reviewList li div {
+.reviewDetails {
   display: grid;
-  gap: 4px;
+  min-width: 0;
+  gap: 6px;
+  text-align: left;
 }
 
-.reviewList li span {
+.reviewDetails strong {
+  overflow-wrap: anywhere;
+}
+
+.reviewStake {
+  display: block;
   color: #6b7280;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.reviewReturn {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 4px;
+  color: #6b7280;
+  font-size: 10px;
+}
+
+.reviewReturn strong {
+  color: #17231c;
+  font-size: 12px;
 }
 
 .reviewTotals {
   display: grid;
-  gap: 6px;
-  padding: 12px 0;
-  border-top: 1px solid #e5e7eb;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f1f5f9;
   color: #374151;
   font-size: 12px;
-  font-weight: 650;
+  text-align: left;
+}
+
+.reviewTotals strong {
+  color: #17231c;
+  text-align: right;
 }
 
 .reviewDialog > .placeBetButton {
   width: 100%;
-  margin-top: 12px;
+  min-height: 46px;
+  margin-top: 16px;
+  border-radius: 9px;
 }
 
 .stakeInput {
@@ -341,6 +394,11 @@
   }
 
   .reviewDialog {
-    padding: 24px 18px 18px;
+    width: calc(100vw - 64px);
+    padding: 28px 16px 18px;
+  }
+
+  .reviewHeading {
+    margin-bottom: 16px;
   }
 }

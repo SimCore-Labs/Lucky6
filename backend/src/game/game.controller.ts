@@ -666,6 +666,36 @@ export class GameController {
     };
   }
 
+  @Get('wallet/transactions')
+  @UseGuards(SessionGuard)
+  async getMyWalletTransactions(
+    @Req() request: AuthenticatedRequest,
+    @Query('limit') rawLimit?: string,
+  ) {
+    const limit = rawLimit === undefined ? 50 : Number(rawLimit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+      throw new BadRequestException('Limit must be an integer between 1 and 50.');
+    }
+
+    const account = await this.prisma.ledgerAccount.findUnique({
+      where: { walletId: request.authenticatedWallet.id },
+      select: {
+        entries: {
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+        },
+      },
+    });
+
+    return (account?.entries ?? []).map((entry) => ({
+      id: entry.id,
+      amount: entry.amount.toString(),
+      type: entry.type,
+      reference: entry.reference,
+      createdAt: entry.createdAt.toISOString(),
+    }));
+  }
+
   @Get('wallet/:walletId/balance')
   @UseGuards(SessionGuard)
   async getBalance(

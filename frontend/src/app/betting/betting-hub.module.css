@@ -1,0 +1,368 @@
+.pageSection {
+  width: min(100%, 960px);
+  min-height: 50vh;
+  margin: 0 auto;
+}
+
+.pageSection h1 {
+  margin: 0;
+  color: #17231c;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 700;
+  text-align: center;
+}
+
+.pageHeading,
+.detailHeading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.textButton,
+.backButton {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #123b8a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.pageHeading .textButton {
+  position: absolute;
+  right: 0;
+}
+
+.textButton:hover,
+.backButton:hover,
+.secondaryButton:hover {
+  background: #f9fafb;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 22px auto 20px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.tab {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b7280;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.selectedTab {
+  background: #fff;
+  color: #123b8a;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
+}
+
+.ticketList,
+.transactionList {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 840px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  margin-inline: auto;
+}
+
+.ticket {
+  display: grid;
+  width: 100%;
+  justify-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
+  color: #17231c;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.ticket:hover {
+  border-color: #bfdbfe;
+  background: #f9fbff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 7%);
+  transform: translateY(-1px);
+}
+
+.ticketTop,
+.ticketBottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ticketBottom,
+.walletAddress,
+.transactionCopy time {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.ticketSelection {
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.statusACCEPTED {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.statusWON {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.statusLOST {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.state,
+.emptyState,
+.slipEmpty {
+  display: grid;
+  min-height: 150px;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+.emptyState,
+.slipEmpty p {
+  margin: 0;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid #123b8a;
+  border-radius: 8px;
+  background: #123b8a;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primaryButton:hover {
+  background: #0e2f6d;
+}
+
+.secondaryButton {
+  min-height: 36px;
+  border-color: #d1d5db;
+  background: #fff;
+  color: #123b8a;
+}
+
+.error {
+  margin: 16px 0;
+  color: #b91c1c;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.panel {
+  width: min(100%, 840px);
+  margin-top: 20px;
+  margin-inline: auto;
+  padding: clamp(16px, 4vw, 28px);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.backButton {
+  display: flex;
+  width: fit-content;
+  margin-bottom: 18px;
+}
+
+.detailHeading h1 {
+  margin-top: 4px;
+  text-align: center;
+}
+
+.detailList {
+  display: grid;
+  gap: 0;
+  margin: 22px 0 0;
+}
+
+.detailList > div {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid #f3f4f6;
+  font-size: 13px;
+  text-align: center;
+}
+
+.detailList dt {
+  color: #6b7280;
+}
+
+.detailList dd {
+  margin: 0;
+  color: #17231c;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.profileCard {
+  display: grid;
+  width: min(100%, 520px);
+  justify-items: center;
+  gap: 8px;
+  margin: 20px auto 0;
+  padding: 22px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.profileCard > strong {
+  color: #17231c;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.transactions {
+  width: min(100%, 840px);
+  margin: 30px auto 0;
+}
+
+.transactions h2 {
+  margin: 0 0 16px;
+  color: #17231c;
+  font-size: 17px;
+  text-align: center;
+}
+
+.transaction {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.transactionCopy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  text-align: left;
+}
+
+.transactionCopy strong {
+  color: #17231c;
+  font-size: 13px;
+}
+
+.transactionAmount {
+  color: #17231c;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .pageSection {
+    min-height: 55vh;
+  }
+
+  .ticketBottom {
+    gap: 6px 12px;
+  }
+
+  .pageHeading .textButton {
+    right: -8px;
+  }
+
+  .tab {
+    padding-inline: 12px;
+  }
+
+  .ticket {
+    padding: 16px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket {
+    transition: none;
+  }
+}
