@@ -125,7 +125,9 @@
 
 .drawNumber {
   overflow: hidden;
+  color: #fff;
   font-size: 0.77rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -182,6 +184,7 @@
   display: flex;
   align-items: baseline;
   gap: 4px;
+  color: #fff;
   font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
 }
@@ -291,7 +294,9 @@
 }
 
 .numberStat strong {
+  color: #fff;
   font-size: 0.72rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -326,6 +331,7 @@
 .statSummary strong {
   min-width: 39px;
   background: #101311;
+  color: #fff;
   font-size: 1rem;
   text-align: center;
 }
