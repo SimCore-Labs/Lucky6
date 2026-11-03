@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import {
+  API_BASE_URL,
   ApiError,
   getCurrentDraw,
   getDrawResults,
@@ -15,7 +16,6 @@ import styles from './latest-draw-section.module.css';
 
 const fallbackRefreshInterval = 5 * 60_000;
 const liveDrawRefreshInterval = 3_000;
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 gsap.registerPlugin(useGSAP);
 
@@ -86,7 +86,7 @@ export function LatestDrawSection() {
       }
     };
 
-    const socket = io(new URL(apiUrl).origin, {
+    const socket = io(new URL(API_BASE_URL).origin, {
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1_000,

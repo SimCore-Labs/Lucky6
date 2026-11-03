@@ -1,5 +1,5 @@
-const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'https://luckyapi.muizdev.xyz';
 
 export class ApiError extends Error {
   constructor(
@@ -38,7 +38,7 @@ export async function fetchJson<T>(
   if (options?.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}${endpoint}`, {
     credentials: 'include',
     ...options,
     headers,

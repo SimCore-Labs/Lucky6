@@ -165,6 +165,10 @@
 }
 
 .placeBetButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 42px;
   padding: 0 20px;
   border: 1px solid #123b8a;
@@ -174,6 +178,11 @@
   font: inherit;
   font-size: 13px;
   font-weight: 700;
+}
+
+.placeBetButton [role='progressbar'] span {
+  background: #fff;
+  box-shadow: none;
 }
 
 .placeBetButton:hover:not(:disabled) {

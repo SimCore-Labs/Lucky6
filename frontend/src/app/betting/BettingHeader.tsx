@@ -28,7 +28,6 @@ function shortenAddress(address: string) {
 }
 
 export function BettingHeader({ loading = false }: { loading?: boolean }) {
-  const [walletDialogOpen, setWalletDialogOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
@@ -39,6 +38,8 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
   const connectedWallet = useConnectedWallet(walletClient);
   const { dispatchAsync: disconnect } = useDisconnect(walletClient);
   const queryClient = useQueryClient();
+  const walletDialogOpen = useUiStore((state) => state.walletModalOpen);
+  const setWalletModalOpen = useUiStore((state) => state.setWalletModalOpen);
   const setWalletProfile = useUiStore((state) => state.setWalletProfile);
   const walletSession = useQuery({
     queryKey: walletMeQueryKey,
@@ -143,7 +144,7 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
       }
       if (connectedWallet) await disconnect();
       setMenuOpen(false);
-      setWalletDialogOpen(false);
+      setWalletModalOpen(false);
       setNetwork(nextNetwork);
     } catch (error) {
       setDisconnectError(
@@ -226,7 +227,7 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
                   setDisconnectError(null);
                   setMenuOpen((open) => !open);
                 } else {
-                  setWalletDialogOpen(true);
+                  setWalletModalOpen(true);
                 }
               }}
             >
@@ -264,7 +265,7 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
-                      setWalletDialogOpen(true);
+                      setWalletModalOpen(true);
                     }}
                   >
                     <span>{walletActionLabel}</span>
@@ -294,7 +295,7 @@ export function BettingHeader({ loading = false }: { loading?: boolean }) {
       </div>
       <WalletDialog
         open={walletDialogOpen}
-        onClose={() => setWalletDialogOpen(false)}
+        onClose={() => setWalletModalOpen(false)}
         sessionError={
           walletSession.error instanceof Error
             ? walletSession.error.message

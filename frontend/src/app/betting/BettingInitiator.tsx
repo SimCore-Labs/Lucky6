@@ -18,6 +18,7 @@ import {
 } from '@/lib/api';
 import { useUiStore } from '@/store/ui/useUiStore';
 import styles from './betting-initiator.module.css';
+import { WalletSpinner } from './WalletSpinner';
 
 const MAX_GROSS_PAYOUT = BigInt(1_000_000);
 
@@ -50,7 +51,7 @@ function DiceAmount({ amount }: { amount: bigint }) {
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 409) {
-    return 'The odds changed. Updated prices are loaded; review your bet again before confirming.';
+    return 'Odds updated. Check your bet and confirm again.';
   }
   return error instanceof Error ? error.message : 'Unable to place the bet.';
 }
@@ -64,6 +65,7 @@ export function BettingInitiator() {
   const updateBetQuote = useUiStore((state) => state.updateBetQuote);
   const removeBet = useUiStore((state) => state.removeBet);
   const clearBets = useUiStore((state) => state.clearBets);
+  const setWalletModalOpen = useUiStore((state) => state.setWalletModalOpen);
   const queryClient = useQueryClient();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,7 +127,7 @@ export function BettingInitiator() {
   async function submitBets() {
     const draw = drawQuery.data;
     if (!draw || !isDrawOpen) {
-      setError('Betting is closed for the current draw.');
+      setError('Betting closed.');
       void drawQuery.refetch();
       return;
     }
@@ -191,7 +193,7 @@ export function BettingInitiator() {
             });
           }
           setError(
-            'The odds changed. Updated prices are loaded; review the slip before confirming again.',
+            'Odds updated. Check your bet and confirm again.',
           );
         } catch (refreshError) {
           setError(
@@ -209,7 +211,7 @@ export function BettingInitiator() {
   return (
     <section className={styles.panel} aria-label="Bet slip">
       {selectedBets.length === 0 ? (
-        <p className={styles.emptySlip}>Choose an outcome to prepare a bet.</p>
+        <p className={styles.emptySlip}>Select a bet</p>
       ) : (
         <>
           <div className={styles.betRows}>
@@ -277,25 +279,40 @@ export function BettingInitiator() {
               disabled={
                 !canReview ||
                 !isDrawOpen ||
-                walletQuery.data == null ||
-                !hasEnoughBalance ||
+                drawQuery.isPending ||
+                walletQuery.isPending ||
+                walletQuery.isError ||
+                (walletQuery.data != null && !hasEnoughBalance) ||
                 isSubmitting
               }
               onClick={() => {
                 setError(null);
+                if (!walletQuery.data) {
+                  setWalletModalOpen(true);
+                  return;
+                }
                 setReviewOpen(true);
               }}
+              aria-label={
+                isSubmitting ||
+                drawQuery.isPending ||
+                walletQuery.isPending
+                  ? 'Loading bet'
+                  : undefined
+              }
             >
-              {!isDrawOpen
-                ? 'Betting unavailable'
-                : walletQuery.data
-                  ? 'Review bet'
-                  : 'Connect wallet to bet'}
+              {isSubmitting || drawQuery.isPending || walletQuery.isPending ? (
+                <WalletSpinner label="Loading bet" size="small" />
+              ) : isDrawOpen ? (
+                'Place bet'
+              ) : (
+                'Unavailable'
+              )}
             </button>
           </div>
           {!hasEnoughBalance && walletQuery.data && (
             <p className={styles.errorMessage} role="alert">
-              Total stake is greater than your available balance.{' '}
+              Insufficient balance.{' '}
               <Link className={styles.topUpLink} href="/top-up">
                 Top up
               </Link>
@@ -308,23 +325,22 @@ export function BettingInitiator() {
         onClose={() => {
           if (!isSubmitting) setReviewOpen(false);
         }}
-        aria-labelledby="bet-review-title"
-        aria-describedby="bet-review-description"
+        aria-labelledby="bet-confirmation-title"
+        aria-describedby="bet-confirmation-description"
       >
         <div className={styles.reviewDialog}>
           <button
             className={styles.closeButton}
             type="button"
-            aria-label="Close bet review"
+            aria-label="Close"
             disabled={isSubmitting}
             onClick={() => setReviewOpen(false)}
           >
             <Close fontSize="small" />
           </button>
-          <h2 id="bet-review-title">Review your bet</h2>
-          <p id="bet-review-description">
-            Draw #{drawQuery.data?.drawNumber}. Confirming submits each
-            selection as its own bet.
+          <h2 id="bet-confirmation-title">Confirm bet</h2>
+          <p id="bet-confirmation-description">
+            Draw #{drawQuery.data?.drawNumber}
           </p>
           <ul className={styles.reviewList}>
             {selectedBets.map((bet) => (
@@ -343,10 +359,9 @@ export function BettingInitiator() {
             ))}
           </ul>
           <div className={styles.reviewTotals}>
-            <span>Total stake: <DiceAmount amount={totalStake} /></span>
+            <span>Stake: <DiceAmount amount={totalStake} /></span>
             <span>
-              Maximum total return if all win (per-ticket cap):{' '}
-              <DiceAmount amount={maximumTotalReturn} />
+              Max return: <DiceAmount amount={maximumTotalReturn} />
             </span>
           </div>
           {error && (
@@ -365,7 +380,11 @@ export function BettingInitiator() {
             }
             onClick={() => void submitBets()}
           >
-            {isSubmitting ? 'Placing bet…' : 'Confirm and place bet'}
+            {isSubmitting ? (
+              <WalletSpinner label="Placing bet" size="small" />
+            ) : (
+              'Confirm bet'
+            )}
           </button>
         </div>
       </Dialog>

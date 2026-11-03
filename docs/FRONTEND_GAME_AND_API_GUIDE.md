@@ -454,15 +454,18 @@ Recommended frontend behavior:
 ### API base URL and shared fetch helper
 
 `frontend/src/lib/api.ts` reads `NEXT_PUBLIC_API_URL`, defaulting to
-`http://localhost:4000`. Use:
+`https://luckyapi.muizdev.xyz`, so local and deployed frontends use the
+production API unless explicitly overridden. Use:
 
 ```env
 # frontend/.env.local
 NEXT_PUBLIC_API_URL=https://luckyapi.muizdev.xyz
 ```
 
-Restart `next dev` after changing this value. The local API URL is appropriate
-only when the backend is running on the developer machine.
+Restart the frontend after changing this value. Set
+`NEXT_PUBLIC_API_URL=http://localhost:4000` only when intentionally testing
+against a backend running on the developer machine. The draw-board Socket.IO
+connection uses the same base URL as the HTTP API.
 
 `fetchJson<T>` joins the base URL and endpoint, sends JSON content type, throws
 on non-2xx responses, and parses the JSON body. Existing helpers cover current

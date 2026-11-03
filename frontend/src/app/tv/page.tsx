@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
 import {
+  API_BASE_URL,
   ApiError,
   getCurrentDraw,
   getDrawResults,
@@ -16,7 +17,6 @@ const fallbackRefreshInterval = 5 * 60_000;
 const liveDrawRefreshInterval = 3_000;
 const recentSlots = Array.from({ length: 5 }, (_, index) => index);
 const colorOrder = ['DRAW', 'RED', 'BLUE', 'GREEN', 'YELLOW'] as const;
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 function getCountdownTarget(draw: CurrentDrawResponse | null): number | null {
   if (!draw) return null;
@@ -96,7 +96,7 @@ export default function TvResultsPage() {
       }
     };
 
-    const socket = io(new URL(apiUrl).origin, {
+    const socket = io(new URL(API_BASE_URL).origin, {
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1_000,
